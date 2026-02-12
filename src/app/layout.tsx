@@ -1,4 +1,6 @@
-﻿export const metadata = {
+﻿import "./globals.css";
+
+export const metadata = {
   title: "Adrian CIMS",
   description: "Microfinance Management System",
 };
@@ -10,9 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "Arial, sans-serif" }}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
