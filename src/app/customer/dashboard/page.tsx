@@ -30,9 +30,10 @@ export default function CustomerDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mainRingProgress, setMainRingProgress] = useState(98.8);
+  const [displayPercentage, setDisplayPercentage] = useState(98.8);
   const [isAnimating, setIsAnimating] = useState(false);
   const [overdueRingRotation, setOverdueRingRotation] = useState(0);
-  const [animationKey, setAnimationKey] = useState(0);
+  const [overduePulseScale, setOverduePulseScale] = useState(1);
 
   // Handle scroll effect for header
   useEffect(() => {
@@ -43,46 +44,76 @@ export default function CustomerDashboard() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Main ring animation - SLOWER, MORE DRAMATIC, ALWAYS SHOWS GAP
+  // Main ring animation - QUICK drop to 0, SLOW fill to 98.8%
   useEffect(() => {
+    let animationTimer: NodeJS.Timeout;
+    let progressTimer: NodeJS.Timeout;
+    
     if (hoveredRing === 'main' || clickedCard === 'ring-main') {
       setIsAnimating(true);
-      setAnimationKey(prev => prev + 1); // Force re-animation
       
-      // Start from 0%
+      // Step 1: INSTANTLY drop to 0%
       setMainRingProgress(0);
+      setDisplayPercentage(0);
       
-      // Animate to 98.8% over 2.5 seconds - SLOWER, MORE VISIBLE
-      const timer = setTimeout(() => {
-        setMainRingProgress(98.8);
-      }, 100);
+      // Step 2: After a tiny delay, start SLOW fill to 98.8%
+      animationTimer = setTimeout(() => {
+        let currentProgress = 0;
+        const targetProgress = 98.8;
+        const increment = 0.4; // Smooth increments
+        const intervalTime = 20; // 50fps
+        
+        progressTimer = setInterval(() => {
+          currentProgress += increment;
+          if (currentProgress >= targetProgress) {
+            setMainRingProgress(targetProgress);
+            setDisplayPercentage(targetProgress);
+            clearInterval(progressTimer);
+            setIsAnimating(false);
+          } else {
+            setMainRingProgress(currentProgress);
+            setDisplayPercentage(Math.round(currentProgress * 10) / 10);
+          }
+        }, intervalTime);
+      }, 50);
       
-      // Reset animation flag after completion
-      const resetTimer = setTimeout(() => {
-        setIsAnimating(false);
-      }, 2600);
-      
-      return () => {
-        clearTimeout(timer);
-        clearTimeout(resetTimer);
-      };
     } else {
-      // When not hovering, show 98.8% (but NEVER 100% - gap is visible)
       setMainRingProgress(98.8);
+      setDisplayPercentage(98.8);
       setIsAnimating(false);
     }
-  }, [hoveredRing, clickedCard, animationKey]);
+    
+    return () => {
+      clearTimeout(animationTimer);
+      clearInterval(progressTimer);
+    };
+  }, [hoveredRing, clickedCard]);
 
-  // Overdue ring rotation - only on hover/click
+  // Overdue ring animation - VISIBLE rotation on hover/tap
   useEffect(() => {
+    let rotationInterval: NodeJS.Timeout;
+    let pulseInterval: NodeJS.Timeout;
+    
     if (hoveredRing === 'overdue' || clickedCard === 'ring-overdue') {
-      const interval = setInterval(() => {
-        setOverdueRingRotation(prev => (prev + 2) % 360);
-      }, 50);
-      return () => clearInterval(interval);
+      // Rotation - faster, more visible
+      rotationInterval = setInterval(() => {
+        setOverdueRingRotation(prev => (prev + 4) % 360);
+      }, 40);
+      
+      // Pulse effect - scale up and down
+      pulseInterval = setInterval(() => {
+        setOverduePulseScale(prev => prev === 1 ? 1.05 : 1);
+      }, 200);
+      
     } else {
       setOverdueRingRotation(0);
+      setOverduePulseScale(1);
     }
+    
+    return () => {
+      if (rotationInterval) clearInterval(rotationInterval);
+      if (pulseInterval) clearInterval(pulseInterval);
+    };
   }, [hoveredRing, clickedCard]);
 
   const customer = {
@@ -117,21 +148,19 @@ export default function CustomerDashboard() {
     }).format(amount).replace('TZS', 'TSh');
   };
 
-  // Main loan ring - 98.8% progress (NEVER fully filled - gap is visible)
-  const mainSize = 140;
+  // MAIN RING - BALANCED SIZE (160px) - NOT TOO SMALL
+  const mainSize = 160;
   const mainStroke = 10;
   const mainRadius = (mainSize - mainStroke) / 2;
   const mainCircumference = mainRadius * 2 * Math.PI;
-  // This ensures the ring NEVER shows 100% - there's ALWAYS a visible gap
-  const mainOffset = mainCircumference - (mainRingProgress / 100) * mainCircumference;
+  const mainOffset = mainCircumference - (Math.min(mainRingProgress, 98.8) / 100) * mainCircumference;
 
-  // Overdue ring - 100% filled (complete circle)
+  // OVERDUE RING - SLIGHTLY BIGGER BUT NOT TOO BIG (200px) - SMALLER TEXT INSIDE
   const overdueSize = 200;
   const overdueStroke = 12;
   const overdueRadius = (overdueSize - overdueStroke) / 2;
   const overdueCircumference = overdueRadius * 2 * Math.PI;
-  // 100% filled = stroke-dashoffset = 0
-  const overdueOffset = 0; // COMPLETE CIRCLE
+  const overdueOffset = 0; // 100% filled
 
   const stats = [
     { 
@@ -387,13 +416,13 @@ export default function CustomerDashboard() {
           </div>
         </div>
 
-        {/* Two Column Layout - Current Progress + Overdue Ring */}
+        {/* Two Column Layout - Current Progress + Overdue Ring - BALANCED SIZES */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
           {/* Current Progress Card - Takes 2 columns on desktop */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100/80 p-4 h-full hover:shadow-md transition-all">
               <div className="flex items-start gap-4">
-                {/* Main Ring - SLOW, VISIBLE animation, NEVER fully filled */}
+                {/* Main Ring - BALANCED SIZE (160px) */}
                 <div 
                   className="relative flex-shrink-0 cursor-pointer"
                   onMouseEnter={() => handleRingHover('main')}
@@ -405,22 +434,22 @@ export default function CustomerDashboard() {
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-xl animate-pulse"></div>
                   )}
                   
-                  <div className="relative w-28 h-28 sm:w-32 sm:h-32">
-                    {/* Background Circle - Light gray */}
+                  <div className="relative w-32 h-32 sm:w-36 sm:h-36">
+                    {/* Background Circle */}
                     <svg className="w-full h-full transform -rotate-90">
                       <circle
                         cx="50%"
                         cy="50%"
-                        r="42%"
+                        r="44%"
                         stroke="#f1f5f9"
                         strokeWidth="8"
                         fill="none"
                       />
-                      {/* Progress Circle - NEVER fully filled, gap is VISIBLE */}
+                      {/* Progress Circle - NEVER fully filled */}
                       <circle
                         cx="50%"
                         cy="50%"
-                        r="42%"
+                        r="44%"
                         stroke="url(#mainGradient)"
                         strokeWidth="8"
                         fill="none"
@@ -428,9 +457,9 @@ export default function CustomerDashboard() {
                         strokeDashoffset={mainOffset}
                         strokeLinecap="round"
                         style={{
-                          transition: hoveredRing === 'main' || clickedCard === 'ring-main' || isAnimating
-                            ? 'stroke-dashoffset 2500ms cubic-bezier(0.2, 0.8, 0.4, 1)' 
-                            : 'stroke-dashoffset 300ms ease-out'
+                          transition: isAnimating 
+                            ? 'stroke-dashoffset 0.02s linear' 
+                            : 'stroke-dashoffset 0.3s ease-out'
                         }}
                         className={`drop-shadow-sm ${
                           hoveredRing === 'main' || clickedCard === 'ring-main' ? 'stroke-[9]' : ''
@@ -447,11 +476,14 @@ export default function CustomerDashboard() {
                     {/* Center Content */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                       <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {Math.round(mainRingProgress)}%
+                        {isAnimating ? displayPercentage.toFixed(1) : Math.round(mainRingProgress)}%
                       </span>
                       <span className="text-[9px] sm:text-[10px] text-gray-500 -mt-0.5">repaid</span>
-                      {/* Small indicator showing the gap */}
-                      <span className="text-[7px] text-gray-400 mt-0.5">{currentLoan.remainingPercentage}% left</span>
+                      <span className="text-[7px] text-gray-400 mt-0.5">
+                        {isAnimating 
+                          ? `${(100 - displayPercentage).toFixed(1)}% left` 
+                          : `${currentLoan.remainingPercentage}% left`}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -492,7 +524,7 @@ export default function CustomerDashboard() {
             </div>
           </div>
 
-          {/* Overdue Ring Card - 100% FILLED, ALL CONTENT INSIDE */}
+          {/* Overdue Ring Card - BALANCED SIZE (200px) with VISIBLE ROTATION ANIMATION */}
           {currentLoan.isOverdue && (
             <div className="lg:col-span-1">
               <div 
@@ -503,37 +535,51 @@ export default function CustomerDashboard() {
               >
                 {/* Danger pulse effect - stronger red when hovered */}
                 {(hoveredRing === 'overdue' || clickedCard === 'ring-overdue') && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl blur-md animate-pulse"></div>
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-r from-red-500/15 to-orange-500/15 rounded-xl blur-md animate-pulse"></div>
+                    <div className="absolute -inset-1 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl blur-lg animate-ping opacity-75"></div>
+                  </>
                 )}
                 
-                {/* Overdue Ring - 100% FILLED (complete circle) */}
-                <div className="relative w-44 h-44 sm:w-48 sm:h-48">
-                  {/* Background Circle - Light red */}
+                {/* Overdue Ring - BALANCED SIZE (200px) */}
+                <div 
+                  className="relative w-48 h-48 sm:w-52 sm:h-52"
+                  style={{
+                    transform: hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
+                      ? `scale(${overduePulseScale})` 
+                      : 'scale(1)',
+                    transition: 'transform 0.2s ease'
+                  }}
+                >
+                  {/* Background Circle */}
                   <svg className="w-full h-full transform -rotate-90">
                     <circle
                       cx="50%"
                       cy="50%"
-                      r="44%"
+                      r="46%"
                       stroke="#fee2e2"
                       strokeWidth="10"
                       fill="none"
                     />
-                    {/* Progress Circle - 100% filled (stroke-dashoffset = 0) */}
+                    {/* Progress Circle - 100% filled with VISIBLE ROTATION on hover */}
                     <circle
                       cx="50%"
                       cy="50%"
-                      r="44%"
+                      r="46%"
                       stroke="url(#overdueGradient)"
                       strokeWidth="10"
                       fill="none"
                       strokeDasharray={overdueCircumference}
-                      strokeDashoffset={overdueOffset} // 0 = COMPLETE CIRCLE
+                      strokeDashoffset={overdueOffset}
                       strokeLinecap="round"
                       style={{
                         transform: hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
                           ? `rotate(${overdueRingRotation}deg)` 
                           : 'rotate(0deg)',
                         transformOrigin: 'center',
+                        transition: hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
+                          ? 'none' 
+                          : 'stroke-dashoffset 0.3s ease'
                       }}
                       className={hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
                         ? 'stroke-[11] drop-shadow-glow-red' 
@@ -548,33 +594,34 @@ export default function CustomerDashboard() {
                     </defs>
                   </svg>
                   
-                  {/* ALL DETAILS INSIDE THE RING - COMPACT, NO PROTRUSION */}
+                  {/* ALL DETAILS INSIDE THE RING - COMPACT TEXT FOR BALANCED SIZE */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
-                    {/* Days Overdue - Large */}
+                    {/* Days Overdue - Prominent */}
                     <div className="flex items-center justify-center gap-0.5 mb-0.5">
                       <AlertTriangle className={`w-5 h-5 text-red-500 transition-all duration-300 ${
                         hoveredRing === 'overdue' || clickedCard === 'ring-overdue' ? 'scale-110 rotate-12' : ''
                       }`} />
-                      <span className="text-3xl sm:text-4xl font-bold text-red-600">15</span>
+                      <span className="text-3xl font-bold text-red-600">15</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-red-700 mb-2">days overdue</span>
+                    <span className="text-[9px] font-semibold text-red-700 mb-2">days overdue</span>
                     
-                    {/* Amount Due - Inside ring */}
-                    <div className="bg-white/90 backdrop-blur rounded-lg px-2 py-1 mb-1.5 border border-red-200 w-full max-w-[120px] mx-auto">
-                      <p className="text-[8px] text-gray-600">Due</p>
+                    {/* Amount Due - Compact */}
+                    <div className="bg-white/90 backdrop-blur rounded-lg px-3 py-1.5 mb-1.5 border border-red-200 w-full max-w-[140px] mx-auto">
+                      <p className="text-[7px] text-gray-600">Due</p>
                       <p className="text-xs font-bold text-gray-900 truncate">{formatCurrency(currentLoan.remaining)}</p>
                     </div>
                     
-                    {/* Penalty - Inside ring */}
-                    <div className="bg-orange-50/90 backdrop-blur rounded px-2 py-0.5 mb-2 w-full max-w-[100px] mx-auto">
-                      <p className="text-[7px] text-gray-600">Penalty</p>
+                    {/* Penalty - Compact */}
+                    <div className="bg-orange-50/90 backdrop-blur rounded-lg px-2 py-1 mb-2 w-full max-w-[120px] mx-auto">
+                      <p className="text-[6px] text-gray-600">Penalty</p>
                       <p className="text-[10px] font-bold text-orange-600 truncate">{formatCurrency(currentLoan.penalty)}</p>
+                      <p className="text-[6px] text-gray-500">2% rate</p>
                     </div>
                     
-                    {/* Pay Now Button - Slightly below ring */}
+                    {/* Pay Now Button */}
                     <Link
                       href="/customer/pay-overdue"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] font-medium rounded-lg hover:from-red-600 hover:to-orange-600 transition-all hover:scale-105 shadow-sm mt-1"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] font-medium rounded-lg hover:from-red-600 hover:to-orange-600 transition-all hover:scale-105 shadow-sm"
                       onClick={(e) => e.stopPropagation()}
                     >
                       Pay Now
@@ -673,7 +720,7 @@ export default function CustomerDashboard() {
 
       <style jsx>{`
         .drop-shadow-glow-red {
-          filter: drop-shadow(0 0 8px rgba(239,68,68,0.5));
+          filter: drop-shadow(0 0 10px rgba(239,68,68,0.6));
         }
       `}</style>
     </div>
