@@ -1,9 +1,11 @@
-﻿"use client";
+﻿'use client';
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { 
   CreditCard, 
+  TrendingUp, 
+  Clock, 
   CheckCircle,
   AlertTriangle,
   ArrowRight,
@@ -14,37 +16,34 @@ import {
   Bell,
   Shield,
   DollarSign,
+  Award,
+  Target,
+  Sparkles,
+  Zap,
+  BarChart3,
   Calendar,
-  Menu,
-  X,
   Home,
-  LogOut,
-  RefreshCw,
-  Clock
+  LogOut
 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 export default function CustomerDashboard() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [hoveredRing, setHoveredRing] = useState<string | null>(null);
   const [clickedCard, setClickedCard] = useState<string | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [mainRingProgress, setMainRingProgress] = useState(98.8);
   const [displayPercentage, setDisplayPercentage] = useState(98.8);
   const [isAnimating, setIsAnimating] = useState(false);
   const [overdueRingRotation, setOverdueRingRotation] = useState(0);
   const [overduePulseScale, setOverduePulseScale] = useState(1);
+  const [mounted, setMounted] = useState(false);
+  const { theme } = useTheme();
 
-  // Handle scroll effect for header
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    setMounted(true);
   }, []);
 
-  // Main ring animation - QUICK drop to 0, SLOW fill to 98.8%
+  // Main ring animation - SLOW, DRAMATIC fill from 0 → 98.8%
   useEffect(() => {
     let animationTimer: NodeJS.Timeout;
     let progressTimer: NodeJS.Timeout;
@@ -52,11 +51,9 @@ export default function CustomerDashboard() {
     if (hoveredRing === 'main' || clickedCard === 'ring-main') {
       setIsAnimating(true);
       
-      // Step 1: INSTANTLY drop to 0%
       setMainRingProgress(0);
       setDisplayPercentage(0);
       
-      // Step 2: After a tiny delay, start SLOW fill to 98.8%
       animationTimer = setTimeout(() => {
         let currentProgress = 0;
         const targetProgress = 98.8;
@@ -89,18 +86,16 @@ export default function CustomerDashboard() {
     };
   }, [hoveredRing, clickedCard]);
 
-  // Overdue ring animation - VISIBLE rotation on hover/tap
+  // Overdue ring animation
   useEffect(() => {
     let rotationInterval: NodeJS.Timeout;
     let pulseInterval: NodeJS.Timeout;
     
     if (hoveredRing === 'overdue' || clickedCard === 'ring-overdue') {
-      // Rotation - visible movement (gap will be hidden by Pay Now button)
       rotationInterval = setInterval(() => {
         setOverdueRingRotation(prev => (prev + 3) % 360);
       }, 50);
       
-      // Pulse effect
       pulseInterval = setInterval(() => {
         setOverduePulseScale(prev => prev === 1 ? 1.04 : 1);
       }, 300);
@@ -121,7 +116,8 @@ export default function CustomerDashboard() {
     initials: "LA",
     memberSince: "Jan 2024",
     nextPayment: "Apr 15",
-    loanProgress: 68
+    loanProgress: 68,
+    creditScore: 750
   };
 
   const currentLoan = {
@@ -133,7 +129,7 @@ export default function CustomerDashboard() {
     penalty: 80000,
     isOverdue: true,
     progress: 40,
-    purpose: "Current Progress",
+    purpose: "Business Expansion",
     interestRate: 12,
     paidPercentage: 98.8,
     remainingPercentage: 1.2
@@ -148,33 +144,40 @@ export default function CustomerDashboard() {
     }).format(amount).replace('TZS', 'TSh');
   };
 
-  // MAIN RING - 90% OF SECTION HEIGHT (DOMINANT)
-  const mainSize = 180; // Increased from 160px to 180px (90% of section)
+  // Ring calculations
+  const mainSize = 160;
   const mainStroke = 10;
   const mainRadius = (mainSize - mainStroke) / 2;
   const mainCircumference = mainRadius * 2 * Math.PI;
-  // ALWAYS keep gap visible - NEVER fully filled
   const mainOffset = mainCircumference - (Math.min(mainRingProgress, 98.8) / 100) * mainCircumference;
 
-  // OVERDUE RING - FULL CIRCLE (COMPLETELY TOUCHING)
-  const overdueSize = 200;
+  const overdueSize = 180;
   const overdueStroke = 12;
   const overdueRadius = (overdueSize - overdueStroke) / 2;
   const overdueCircumference = overdueRadius * 2 * Math.PI;
-  // 100% filled = stroke-dashoffset = 0 (COMPLETE CIRCLE, NO GAP)
-  const overdueOffset = 0;
+  const overdueOffset = 0; // 100% filled
 
   const stats = [
     { 
+      id: 'credit',
+      title: "Credit Score", 
+      value: "750", 
+      badge: "Excellent",
+      badgeColor: "green",
+      icon: Award,
+      gradient: "from-emerald-400 to-teal-500",
+      progress: 88,
+      detail: "Top 15%",
+    },
+    { 
       id: 'active',
-      title: "Active Loan", 
-      value: formatCurrency(currentLoan.total), 
+      title: "Active Loans", 
+      value: "1", 
       badge: "In Progress",
       badgeColor: "blue",
-      icon: RefreshCw,
+      icon: CreditCard,
       gradient: "from-blue-400 to-indigo-500",
-      progress: currentLoan.paidPercentage,
-      detail: `${currentLoan.paidPercentage}% repaid`
+      detail: "View details",
     },
     { 
       id: 'borrowed',
@@ -184,7 +187,7 @@ export default function CustomerDashboard() {
       badgeColor: "purple",
       icon: DollarSign,
       gradient: "from-purple-400 to-pink-500",
-      detail: "3 loans"
+      detail: "3 loans",
     },
     { 
       id: 'repaid',
@@ -195,18 +198,8 @@ export default function CustomerDashboard() {
       icon: CheckCircle,
       gradient: "from-green-400 to-emerald-500",
       progress: 92,
-      detail: "TSh 13.8M"
+      detail: "TSh 13.8M",
     },
-    { 
-      id: 'next',
-      title: "Next Payment", 
-      value: formatCurrency(currentLoan.remaining), 
-      badge: currentLoan.dueDate,
-      badgeColor: "amber",
-      icon: Calendar,
-      gradient: "from-amber-400 to-orange-500",
-      detail: `Due ${currentLoan.dueDate}`
-    }
   ];
 
   const quickActions = [
@@ -248,12 +241,31 @@ export default function CustomerDashboard() {
     }
   ];
 
-  const navItems = [
-    { icon: Home, label: "Dashboard", href: "/customer/dashboard", active: true },
-    { icon: FileText, label: "Apply", href: "/customer/apply-loan" },
-    { icon: History, label: "History", href: "/customer/loan-history" },
-    { icon: User, label: "Profile", href: "/customer/profile" },
-    { icon: Settings, label: "Settings", href: "/customer/settings" }
+  const recentActivities = [
+    {
+      id: 1,
+      title: "Loan Payment",
+      date: "Mar 15, 2024",
+      amount: formatCurrency(500000),
+      icon: CheckCircle,
+      color: "green",
+    },
+    {
+      id: 2,
+      title: "Application Submitted",
+      date: "Mar 1, 2024",
+      amount: formatCurrency(2000000),
+      icon: FileText,
+      color: "blue",
+    },
+    {
+      id: 3,
+      title: "Loan Approved",
+      date: "Feb 28, 2024",
+      amount: "Completed",
+      icon: CheckCircle,
+      color: "purple",
+    }
   ];
 
   const handleCardClick = (id: string) => {
@@ -269,458 +281,313 @@ export default function CustomerDashboard() {
     setHoveredRing(null);
   };
 
+  if (!mounted) return null;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/20">
-      {/* Mobile Hamburger Menu */}
-      <div 
-        className={`fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 transition-opacity duration-300 lg:hidden ${
-          mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={() => setMobileMenuOpen(false)}
-      />
-      
-      <div className={`fixed top-0 left-0 bottom-0 w-72 bg-white/90 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-500 ease-out lg:hidden ${
-        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-base">A</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-900 text-sm">Adrian CIMS</span>
-                <p className="text-[10px] text-gray-500">Microfinance</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setMobileMenuOpen(false)}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-all"
-            >
-              <X className="w-4 h-4 text-gray-500" />
-            </button>
+    <div className="space-y-5">
+      {/* Welcome Section - Original tight layout */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-5 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Welcome back, {customer.name.split(' ')[0]}</h1>
+            <p className="text-sm text-blue-100 mt-1">Your trusted financial partner</p>
           </div>
-          
-          <nav className="flex-1 p-3 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    item.active 
-                      ? 'bg-blue-50 text-blue-700 border border-blue-100' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Icon className={`w-4 h-4 ${item.active ? 'text-blue-600' : 'text-gray-500'}`} />
-                  <span className="font-medium text-xs">{item.label}</span>
-                  {item.active && (
-                    <span className="ml-auto w-1 h-1 bg-blue-600 rounded-full"></span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-          
-          <div className="p-4 border-t border-gray-100">
-            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-sm">{customer.initials}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-900 truncate">{customer.name}</p>
-                <p className="text-[10px] text-gray-500 truncate flex items-center gap-1">
-                  <span className="w-1 h-1 bg-green-400 rounded-full"></span>
-                  Premium
-                </p>
-              </div>
-              <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                <LogOut className="w-3.5 h-3.5 text-gray-500" />
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 bg-white/20 rounded-lg text-xs font-medium backdrop-blur">
+              🎯 {customer.loanProgress}% of goal
+            </span>
+            <span className="px-3 py-1.5 bg-white/20 rounded-lg text-xs font-medium backdrop-blur">
+              Since {customer.memberSince}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Main Content - TIGHT LAYOUT */}
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-5">
-        {/* Desktop Header - Compact */}
-        <div className={`hidden lg:flex sticky top-0 z-40 bg-white/80 backdrop-blur-md -mx-6 px-6 py-3 mb-4 transition-all duration-300 border-b border-gray-100/80 ${
-          scrolled ? 'shadow-sm' : ''
-        }`}>
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-sm">A</span>
-              </div>
-              <span className="font-semibold text-gray-900 text-sm">Adrian CIMS</span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-[10px] font-medium text-gray-700">Active</span>
-              </div>
-              
-              <button className="relative p-1.5 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                <Bell className="w-3.5 h-3.5 text-gray-600" />
-                <span className="absolute top-1 right-1 w-1 h-1 bg-red-500 rounded-full ring-1 ring-white"></span>
-              </button>
-              
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-[10px] font-medium text-gray-700">Next: {customer.nextPayment}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Header - Only Hamburger */}
-        <div className="lg:hidden flex items-center justify-between mb-4">
-          <button 
-            onClick={() => setMobileMenuOpen(true)}
-            className="p-2 bg-white rounded-lg shadow-sm border border-gray-200"
-          >
-            <Menu className="w-4 h-4 text-gray-700" />
-          </button>
-          
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs">A</span>
-            </div>
-            <span className="font-semibold text-gray-900 text-xs">Adrian CIMS</span>
-          </div>
-          
-          <button className="p-2 bg-white rounded-lg shadow-sm border border-gray-200">
-            <Bell className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
-
-        {/* Welcome - Compact */}
-        <div className="mb-5">
-          <div className="flex items-end justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-                Hello, {customer.name.split(' ')[0]}
-              </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-medium">
-                  🎯 {customer.loanProgress}% of goal
-                </span>
-                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-medium">
-                  Since {customer.memberSince}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Two Column Layout - Current Progress + Overdue Ring */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-          {/* Current Progress Card - Takes 2 columns on desktop */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100/80 p-4 h-full hover:shadow-md transition-all">
-              <div className="flex items-start gap-5">
-                {/* Main Ring - 90% OF SECTION HEIGHT (DOMINANT) - ALWAYS HAS GAP */}
-                <div 
-                  className="relative flex-shrink-0 cursor-pointer"
-                  onMouseEnter={() => handleRingHover('main')}
-                  onMouseLeave={handleRingLeave}
-                  onClick={() => handleCardClick('ring-main')}
-                >
-                  {/* Glow effect on hover/click */}
-                  {(hoveredRing === 'main' || clickedCard === 'ring-main' || isAnimating) && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-xl animate-pulse"></div>
-                  )}
-                  
-                  <div className="relative w-36 h-36 sm:w-40 sm:h-40 lg:w-44 lg:h-44">
-                    {/* Background Circle */}
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle
-                        cx="50%"
-                        cy="50%"
-                        r="44%"
-                        stroke="#f1f5f9"
-                        strokeWidth="8"
-                        fill="none"
-                      />
-                      {/* Progress Circle - NEVER fully filled, GAP ALWAYS VISIBLE */}
-                      <circle
-                        cx="50%"
-                        cy="50%"
-                        r="44%"
-                        stroke="url(#mainGradient)"
-                        strokeWidth="8"
-                        fill="none"
-                        strokeDasharray={mainCircumference}
-                        strokeDashoffset={mainOffset}
-                        strokeLinecap="round"
-                        style={{
-                          transition: isAnimating 
-                            ? 'stroke-dashoffset 0.02s linear' 
-                            : 'stroke-dashoffset 0.3s ease-out'
-                        }}
-                        className={`drop-shadow-md ${
-                          hoveredRing === 'main' || clickedCard === 'ring-main' ? 'stroke-[9]' : ''
-                        }`}
-                      />
-                      <defs>
-                        <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#3b82f6" />
-                          <stop offset="100%" stopColor="#8b5cf6" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
-                    
-                    {/* Center Content */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {isAnimating ? displayPercentage.toFixed(1) : Math.round(mainRingProgress)}%
-                      </span>
-                      <span className="text-[10px] sm:text-xs text-gray-500 -mt-0.5">repaid</span>
-                      {/* Gap indicator - ALWAYS VISIBLE */}
-                      <span className="text-[8px] text-gray-400 mt-1">
-                        {isAnimating 
-                          ? `${(100 - displayPercentage).toFixed(1)}% left` 
-                          : `${currentLoan.remainingPercentage}% left`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Loan Details */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                      {currentLoan.purpose}
-                    </h2>
-                    <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-lg text-[9px] sm:text-[10px] font-medium">
-                      {currentLoan.progress}% overdue
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-gray-500 mb-3 flex items-center gap-2">
-                    <span>#{currentLoan.id}</span>
-                    <span className="w-0.5 h-0.5 bg-gray-300 rounded-full"></span>
-                    <span>{currentLoan.interestRate}% APR</span>
-                  </p>
-
-                  {/* Two columns - Total and Paid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-2.5 border border-gray-100">
-                      <p className="text-[9px] text-gray-500 mb-0.5">Total</p>
-                      <p className="text-sm font-bold text-gray-900">
-                        {formatCurrency(currentLoan.total)}
-                      </p>
-                    </div>
-                    <div className="bg-gradient-to-br from-green-50 to-white rounded-lg p-2.5 border border-green-100">
-                      <p className="text-[9px] text-gray-500 mb-0.5">Paid</p>
-                      <p className="text-sm font-bold text-green-600">
-                        {formatCurrency(currentLoan.paid)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Overdue Ring Card - FULL CIRCLE (COMPLETELY TOUCHING) */}
-          {currentLoan.isOverdue && (
-            <div className="lg:col-span-1">
+      {/* Two Column Layout - Original beautiful arrangement */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Current Progress Card - Takes 2 columns */}
+        <div className="lg:col-span-2">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-5">
+            <div className="flex items-start gap-4">
+              {/* Main Ring */}
               <div 
-                className="relative bg-gradient-to-br from-red-50 to-orange-50 rounded-xl shadow-sm border border-red-100 p-3 h-full flex items-center justify-center hover:shadow-md transition-all cursor-pointer"
-                onMouseEnter={() => handleRingHover('overdue')}
+                className="relative flex-shrink-0 cursor-pointer"
+                onMouseEnter={() => handleRingHover('main')}
                 onMouseLeave={handleRingLeave}
-                onClick={() => handleCardClick('ring-overdue')}
+                onClick={() => handleCardClick('ring-main')}
               >
-                {/* Danger pulse effect */}
-                {(hoveredRing === 'overdue' || clickedCard === 'ring-overdue') && (
-                  <>
-                    <div className="absolute inset-0 bg-gradient-to-r from-red-500/15 to-orange-500/15 rounded-xl blur-md animate-pulse"></div>
-                    <div className="absolute -inset-1 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl blur-lg animate-ping opacity-75"></div>
-                  </>
+                {(hoveredRing === 'main' || clickedCard === 'ring-main' || isAnimating) && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-xl animate-pulse"></div>
                 )}
                 
-                {/* Overdue Ring - FULL CIRCLE (NO GAP) */}
-                <div 
-                  className="relative w-48 h-48 sm:w-52 sm:h-52"
-                  style={{
-                    transform: hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
-                      ? `scale(${overduePulseScale})` 
-                      : 'scale(1)',
-                    transition: 'transform 0.2s ease'
-                  }}
-                >
-                  {/* Background Circle */}
+                <div className="relative w-28 h-28 sm:w-32 sm:h-32">
                   <svg className="w-full h-full transform -rotate-90">
                     <circle
                       cx="50%"
                       cy="50%"
-                      r="46%"
-                      stroke="#fee2e2"
-                      strokeWidth="10"
+                      r="44%"
+                      stroke="#f1f5f9"
+                      strokeWidth="8"
                       fill="none"
+                      className="dark:stroke-gray-800"
                     />
-                    {/* Progress Circle - 100% filled, COMPLETE CIRCLE, NO GAP */}
                     <circle
                       cx="50%"
                       cy="50%"
-                      r="46%"
-                      stroke="url(#overdueGradient)"
-                      strokeWidth="10"
+                      r="44%"
+                      stroke="url(#mainGradient)"
+                      strokeWidth="8"
                       fill="none"
-                      strokeDasharray={overdueCircumference}
-                      strokeDashoffset={overdueOffset}
+                      strokeDasharray={mainCircumference}
+                      strokeDashoffset={mainOffset}
                       strokeLinecap="round"
                       style={{
-                        transform: hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
-                          ? `rotate(${overdueRingRotation}deg)` 
-                          : 'rotate(0deg)',
-                        transformOrigin: 'center',
+                        transition: isAnimating 
+                          ? 'stroke-dashoffset 0.02s linear' 
+                          : 'stroke-dashoffset 0.3s ease-out'
                       }}
-                      className={hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
-                        ? 'stroke-[11] drop-shadow-glow-red' 
-                        : ''
-                      }
+                      className={`drop-shadow-sm ${
+                        hoveredRing === 'main' || clickedCard === 'ring-main' ? 'stroke-[9]' : ''
+                      }`}
                     />
                     <defs>
-                      <linearGradient id="overdueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#ef4444" />
-                        <stop offset="100%" stopColor="#f97316" />
+                      <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#8b5cf6" />
                       </linearGradient>
                     </defs>
                   </svg>
                   
-                  {/* ALL DETAILS INSIDE THE RING - GAP HIDDEN BY PAY NOW BUTTON */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
-                    {/* Days Overdue - Prominent */}
-                    <div className="flex items-center justify-center gap-0.5 mb-0.5">
-                      <AlertTriangle className={`w-5 h-5 text-red-500 transition-all duration-300 ${
-                        hoveredRing === 'overdue' || clickedCard === 'ring-overdue' ? 'scale-110 rotate-12' : ''
-                      }`} />
-                      <span className="text-3xl font-bold text-red-600">15</span>
-                    </div>
-                    <span className="text-[9px] font-semibold text-red-700 mb-2">days overdue</span>
-                    
-                    {/* Amount Due */}
-                    <div className="bg-white/90 backdrop-blur rounded-lg px-3 py-1.5 mb-1.5 border border-red-200 w-full max-w-[140px] mx-auto">
-                      <p className="text-[7px] text-gray-600">Due</p>
-                      <p className="text-xs font-bold text-gray-900 truncate">{formatCurrency(currentLoan.remaining)}</p>
-                    </div>
-                    
-                    {/* Penalty */}
-                    <div className="bg-orange-50/90 backdrop-blur rounded-lg px-2 py-1 mb-2 w-full max-w-[120px] mx-auto">
-                      <p className="text-[6px] text-gray-600">Penalty</p>
-                      <p className="text-[10px] font-bold text-orange-600 truncate">{formatCurrency(currentLoan.penalty)}</p>
-                      <p className="text-[6px] text-gray-500">2% rate</p>
-                    </div>
-                    
-                    {/* Pay Now Button - HIDES THE ROTATION GAP */}
-                    <Link
-                      href="/customer/pay-overdue"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] font-medium rounded-lg hover:from-red-600 hover:to-orange-600 transition-all hover:scale-105 shadow-sm mt-1 z-10"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      Pay Now
-                      <ArrowRight className="w-2.5 h-2.5" />
-                    </Link>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      {isAnimating ? displayPercentage.toFixed(1) : Math.round(mainRingProgress)}%
+                    </span>
+                    <span className="text-[9px] text-gray-500 dark:text-gray-400 -mt-0.5">repaid</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan Details */}
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">{currentLoan.purpose}</h2>
+                  <span className="px-2 py-1 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-[10px] font-medium">
+                    {currentLoan.progress}% overdue
+                  </span>
+                </div>
+                
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-3">
+                  #{currentLoan.id} • {currentLoan.interestRate}% APR
+                </p>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <p className="text-[8px] text-gray-500 dark:text-gray-400">Total</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-white">{formatCurrency(currentLoan.total)}</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2">
+                    <p className="text-[8px] text-gray-500 dark:text-gray-400">Paid</p>
+                    <p className="text-xs font-bold text-green-600 dark:text-green-400">{formatCurrency(currentLoan.paid)}</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
+                    <p className="text-[8px] text-gray-500 dark:text-gray-400">Left</p>
+                    <p className="text-xs font-bold text-amber-600 dark:text-amber-400">{formatCurrency(currentLoan.remaining)}</p>
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Stats Grid - 4 columns, compact */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            const isHovered = hoveredCard === stat.id;
-            
-            return (
-              <div
-                key={stat.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
-                onMouseEnter={() => setHoveredCard(stat.id)}
-                onMouseLeave={() => setHoveredCard(null)}
+        {/* Overdue Ring Card - Takes 1 column */}
+        {currentLoan.isOverdue && (
+          <div className="lg:col-span-1">
+            <div 
+              className="relative bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 rounded-2xl border border-red-200 dark:border-red-800 p-4 h-full flex items-center justify-center cursor-pointer"
+              onMouseEnter={() => handleRingHover('overdue')}
+              onMouseLeave={handleRingLeave}
+              onClick={() => handleCardClick('ring-overdue')}
+            >
+              {(hoveredRing === 'overdue' || clickedCard === 'ring-overdue') && (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-2xl blur-md animate-pulse"></div>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-2xl blur-lg animate-ping opacity-75"></div>
+                </>
+              )}
+              
+              <div 
+                className="relative w-36 h-36"
+                style={{
+                  transform: `scale(${overduePulseScale})`,
+                  transition: 'transform 0.2s ease'
+                }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className={`p-1.5 bg-gradient-to-br ${stat.gradient} rounded-lg shadow-sm`}>
-                    <Icon className="w-3.5 h-3.5 text-white" />
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r="44%"
+                    stroke="#fee2e2"
+                    strokeWidth="10"
+                    fill="none"
+                    className="dark:stroke-red-900/50"
+                  />
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r="44%"
+                    stroke="url(#overdueGradient)"
+                    strokeWidth="10"
+                    fill="none"
+                    strokeDasharray={overdueCircumference}
+                    strokeDashoffset={overdueOffset}
+                    strokeLinecap="round"
+                    style={{
+                      transform: hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
+                        ? `rotate(${overdueRingRotation}deg)` 
+                        : 'rotate(0deg)',
+                      transformOrigin: 'center',
+                    }}
+                    className={hoveredRing === 'overdue' || clickedCard === 'ring-overdue' 
+                      ? 'stroke-[11] drop-shadow-glow-red' 
+                      : ''
+                    }
+                  />
+                  <defs>
+                    <linearGradient id="overdueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#ef4444" />
+                      <stop offset="100%" stopColor="#f97316" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <div className="flex items-center gap-0.5">
+                    <AlertTriangle className={`w-4 h-4 text-red-500 transition-all duration-300 ${
+                      hoveredRing === 'overdue' || clickedCard === 'ring-overdue' ? 'scale-110 rotate-12' : ''
+                    }`} />
+                    <span className="text-xl font-bold text-red-600 dark:text-red-400">15</span>
                   </div>
-                  <span className={`text-[8px] font-medium px-1.5 py-0.5 bg-${stat.badgeColor}-50 text-${stat.badgeColor}-700 rounded-full`}>
-                    {stat.badge}
-                  </span>
+                  <span className="text-[8px] font-medium text-red-700 dark:text-red-300 -mt-1">days overdue</span>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] font-bold text-gray-900 dark:text-white">{formatCurrency(currentLoan.remaining)}</p>
+                    <p className="text-[7px] text-orange-600 dark:text-orange-400">+{formatCurrency(currentLoan.penalty)} penalty</p>
+                  </div>
                 </div>
-                <p className="text-[9px] text-gray-500 mb-0.5">{stat.title}</p>
-                <p className="text-sm font-bold text-gray-900">
-                  {stat.value}
-                </p>
-                {stat.progress ? (
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full bg-gradient-to-r ${stat.gradient} rounded-full`}
-                        style={{ width: `${stat.progress}%` }}
-                      />
-                    </div>
-                    <span className="text-[8px] text-gray-500">{stat.detail}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Grid - Original tight grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          const isHovered = hoveredCard === stat.id;
+          
+          return (
+            <div
+              key={stat.id}
+              className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+              onMouseEnter={() => setHoveredCard(stat.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => handleCardClick(stat.id)}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-1.5 bg-gradient-to-br ${stat.gradient} rounded-lg shadow-sm`}>
+                  <Icon className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className={`text-[8px] font-medium px-1.5 py-0.5 bg-${stat.badgeColor}-50 dark:bg-${stat.badgeColor}-900/30 text-${stat.badgeColor}-700 dark:text-${stat.badgeColor}-300 rounded-full`}>
+                  {stat.badge}
+                </span>
+              </div>
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 mb-0.5">{stat.title}</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">{stat.value}</p>
+              {stat.progress ? (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <div className="flex-1 h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full bg-gradient-to-r ${stat.gradient} rounded-full`}
+                      style={{ width: `${stat.progress}%` }}
+                    />
                   </div>
-                ) : (
-                  <p className="text-[8px] text-gray-400 mt-2">{stat.detail}</p>
-                )}
+                  <span className="text-[7px] text-gray-500 dark:text-gray-400">{stat.detail}</span>
+                </div>
+              ) : (
+                <p className="text-[7px] text-gray-400 dark:text-gray-500 mt-2">{stat.detail}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Quick Actions - Original layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          const isHovered = hoveredCard === action.id;
+          
+          return (
+            <Link
+              key={action.id}
+              href={action.href}
+              className="group"
+              onMouseEnter={() => setHoveredCard(action.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => handleCardClick(action.id)}
+            >
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`p-2 bg-gradient-to-br ${action.gradient} rounded-lg transition-all duration-200 ${
+                    isHovered ? 'scale-110 rotate-3 shadow-md' : ''
+                  }`}>
+                    <Icon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-900 dark:text-white">{action.title}</p>
+                    <p className="text-[7px] text-gray-500 dark:text-gray-400 mt-0.5">{action.description}</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Recent Activity - Original */}
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-4">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Recent Activity</h3>
+        <div className="space-y-2">
+          {recentActivities.map((activity) => {
+            const Icon = activity.icon;
+            return (
+              <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className={`p-1.5 bg-${activity.color}-100 dark:bg-${activity.color}-900/30 rounded-lg`}>
+                    <Icon className={`w-3 h-3 text-${activity.color}-600 dark:text-${activity.color}-400`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-900 dark:text-white">{activity.title}</p>
+                    <p className="text-[8px] text-gray-500 dark:text-gray-400">{activity.date}</p>
+                  </div>
+                </div>
+                <p className={`text-xs font-semibold ${
+                  activity.color === 'green' ? 'text-green-600 dark:text-green-400' :
+                  activity.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                  'text-purple-600 dark:text-purple-400'
+                }`}>
+                  {activity.amount}
+                </p>
               </div>
             );
           })}
-        </div>
-
-        {/* Quick Actions - Compact */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            const isHovered = hoveredCard === action.id;
-            
-            return (
-              <Link
-                key={action.id}
-                href={action.href}
-                className="group"
-                onMouseEnter={() => setHoveredCard(action.id)}
-                onMouseLeave={() => setHoveredCard(null)}
-                onClick={() => handleCardClick(action.id)}
-              >
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
-                  <div className="flex flex-col items-center text-center gap-2">
-                    <div className={`p-2 bg-gradient-to-br ${action.gradient} rounded-lg transition-all duration-200 ${
-                      isHovered ? 'scale-110 rotate-3 shadow-md' : ''
-                    }`}>
-                      <Icon className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-900">{action.title}</p>
-                      <p className="text-[8px] text-gray-500 mt-0.5">{action.description}</p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Footer - Compact */}
-        <div className="mt-6 text-center">
-          <p className="text-[9px] text-gray-400">
-            Need help? <span className="text-blue-600 font-medium">support@adriancims.com</span>
-          </p>
         </div>
       </div>
 
       <style jsx>{`
         .drop-shadow-glow-red {
-          filter: drop-shadow(0 0 10px rgba(239,68,68,0.6));
+          filter: drop-shadow(0 0 10px rgba(239,68,68,0.5));
         }
       `}</style>
     </div>

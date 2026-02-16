@@ -33,6 +33,25 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 
+// Define the navigation item type with optional properties
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  description: string;
+  roles: string[];
+  badge?: number | string;
+  badgeColor?: string;
+  highlight?: boolean;
+}
+
+interface NavSection {
+  id: string;
+  title: string;
+  icon?: any;
+  items: NavItem[];
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -48,16 +67,12 @@ export default function AdminLayout({
   // Get permissions for current user
   const { 
     userRole, 
-    canManageUsers, 
-    canDisburse, 
-    canAuditLogs,
     getRoleBadgeColor 
   } = usePermissions();
 
   // Demo stats
   const [pendingApprovals] = useState(3);
   const [readyToDisburse] = useState(2);
-  const [pendingPaidNotifications] = useState(1);
 
   // Handle scroll effect
   useEffect(() => {
@@ -77,8 +92,8 @@ export default function AdminLayout({
     );
   };
 
-  // Role-based navigation with sections
-  const navSections = [
+  // Role-based navigation with sections - properly typed with optional properties
+  const navSections: NavSection[] = [
     {
       id: 'main',
       title: 'Main',
@@ -289,7 +304,7 @@ export default function AdminLayout({
           onClick={() => setMobileMenuOpen(false)}
         />
 
-        {/* Mobile Sidebar - Slide-out menu */}
+        {/* Mobile Sidebar */}
         <div className={`fixed top-0 left-0 bottom-0 w-72 sm:w-80 bg-white dark:bg-gray-900 shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
