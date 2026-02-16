@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("customer")
+  isStaff   Boolean  @default(false)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customers      Customer[] @relation("CreatedByUser")
+  uploadedCustomers Customer[] @relation("UploadedByUser")
+  verifiedCustomers Customer[] @relation("VerifiedByUser")
+  loans          Loan[] @relation("CreatedByUser")
+  approvedLoans1 Loan[] @relation("ApprovedBy1")
+  approvedLoans2 Loan[] @relation("ApprovedBy2")
+  disbursedLoans Loan[] @relation("DisbursedBy")
+  paidLoans      Loan[] @relation("PaidByUser")
+  payments       Payment[] @relation("ReceivedByUser")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  firstName      String
+  surname        String
+  middleName     String?
+  phoneNumber    String   @unique
+  alternativePhone String?
+  email          String?
+  dateOfBirth    DateTime?
+  age            Int?
+  gender         String?
+  address        String?
+  city           String?
+  region         String?
+  occupation     String?
+  employer       String?
+  monthlyIncome  Float?
+  businessName   String?
+  maritalStatus  String?
+  dependents     Int?    @default(0)
+  spouseName     String?
+  spousePhone    String?
+  nextOfKinName  String?
+  nextOfKinRelation String?
+  nextOfKinPhone String?
+  guarantorName  String?
+  guarantorRelation String?
+  guarantorPhone String?
+  nationalId     String? @unique
+  bankName       String?
+  accountNumber  String?
+  mobileMoneyProvider String?
+  mobileMoneyNumber String?
+  creditScore    Int?    @default(650)
+  riskLevel      String? @default("medium")
+  category       String? @default("Standard")
+  registrationMethod String? @default("app")
+  uploadedById   String?
+  uploadedAt     DateTime?
+  verifiedById   String?
+  verifiedAt     DateTime?
+  totalLoans     Int     @default(0)
+  activeLoans    Int     @default(0)
+  overdueLoans   Int     @default(0)
+  totalBorrowed  Float   @default(0)
+  totalRepaid    Float   @default(0)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedById    String?
+  updatedAt      DateTime @updatedAt
+
+  loans          Loan[]
+  createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
+  uploadedBy     User?    @relation("UploadedByUser", fields: [uploadedById], references: [id])
+  verifiedBy     User?    @relation("VerifiedByUser", fields: [verifiedById], references: [id])
+
+  @@unique([firstName, surname, phoneNumber])
+  @@index([customerId])
+  @@index([phoneNumber])
+}
+
+model Loan {
+  id             String   @id @default(cuid())
+  loanId         String   @unique
+  customerId     String
+  amount         Float
+  purpose        String
+  term           Int
+  interestRate   Float
+  amountPaid     Float    @default(0)
+  remainingBalance Float
+  penalties      Float    @default(0)
+  nextPaymentDate DateTime?
+  status         String   @default("pending")
+  stage          Int      @default(1)
+  createdById    String
+  createdAt      DateTime @default(now())
+  approvedById1  String?
+  approvedAt1    DateTime?
+  approvedById2  String?
+  approvedAt2    DateTime?
+  disbursedById  String?
+  disbursedAt    DateTime?
+  paidById       String?
+  paidAt         DateTime?
+  updatedById    String?
+  updatedAt      DateTime @updatedAt
+
+  customer       Customer @relation(fields: [customerId], references: [id])
+  createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
+  approvedBy1    User?    @relation("ApprovedBy1", fields: [approvedById1], references: [id])
+  approvedBy2    User?    @relation("ApprovedBy2", fields: [approvedById2], references: [id])
+  disbursedBy    User?    @relation("DisbursedBy", fields: [disbursedById], references: [id])
+  paidBy         User?    @relation("PaidByUser", fields: [paidById], references: [id])
+
+  payments       Payment[]
+
+  @@index([loanId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model Payment {
+  id           String   @id @default(cuid())
+  paymentId    String   @unique
+  loanId       String
+  amount       Float
+  method       String
+  reference    String?
+  receivedById String
+  receivedAt   DateTime @default(now())
+  notes        String?
+
+  loan         Loan     @relation(fields: [loanId], references: [id])
+  receivedBy   User     @relation("ReceivedByUser", fields: [receivedById], references: [id])
+
+  @@index([loanId])
+}
