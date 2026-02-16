@@ -51,10 +51,10 @@
 
 @layer base {
   * {
-    @apply border-gray-200 dark:border-gray-800;
+    @apply border-border;
   }
   body {
-    @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+    @apply bg-background text-foreground;
   }
 }
 
@@ -86,67 +86,41 @@
   animation: float 3s ease-in-out infinite;
 }
 
-@keyframes pulse-ring {
-  0% { transform: scale(0.95); opacity: 0.7; }
-  50% { transform: scale(1); opacity: 0.3; }
-  100% { transform: scale(0.95); opacity: 0.7; }
-}
-
-.animate-pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Mobile animations */
-@keyframes slide-up {
+@keyframes slide-in {
   from {
-    transform: translateY(100%);
+    transform: translateX(-100%);
+    opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
 }
 
-/* Touch-friendly tap targets */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+/* Mobile optimizations */
 @media (max-width: 640px) {
-  button, 
-  a,
-  [role="button"],
-  input,
-  select,
-  .tap-target {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  /* Prevent text zoom on input focus */
   input, select, textarea {
     font-size: 16px !important;
   }
   
-  /* Better scrolling on mobile */
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
   }
-  
-  /* Remove hover effects on mobile */
-  .hover\:bg-gray-50:hover {
-    background-color: transparent;
-  }
-  
-  .dark .hover\:bg-gray-800:hover {
-    background-color: transparent;
-  }
-}
-
-/* Safe area insets for modern phones */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.pt-safe {
-  padding-top: env(safe-area-inset-top);
 }
