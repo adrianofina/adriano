@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Search, 
@@ -15,24 +15,89 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  FileText
 } from 'lucide-react';
-import { useLoans } from '@/hooks/useData';
-import { usePermissions } from '@/hooks/usePermissions';
 
 export default function LoansPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [page, setPage] = useState(1);
-  
-  const { data: loans, loading, total } = useLoans({
-    search: searchTerm,
-    status: statusFilter,
-    page,
-    limit: 10
-  });
+  const [loans, setLoans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { userRole, canApproveStage1, canApproveStage2, canDisburse } = usePermissions();
+  useEffect(() => {
+    // Simulate API call
+    setTimeout(() => {
+      setLoans([
+        {
+          id: 'L-342',
+          customer: 'Laurent Adriano',
+          amount: 3420000,
+          purpose: 'Business Expansion',
+          status: 'overdue',
+          progress: 98.8,
+          appliedDate: '2024-02-10',
+          dueDate: '2024-04-15',
+          creditScore: 750,
+          risk: 'low',
+          documents: 3
+        },
+        {
+          id: 'L-343',
+          customer: 'John Doe',
+          amount: 5000000,
+          purpose: 'Business Expansion',
+          status: 'pending',
+          progress: 0,
+          appliedDate: '2024-03-15',
+          dueDate: '2024-06-15',
+          creditScore: 680,
+          risk: 'medium',
+          documents: 2
+        },
+        {
+          id: 'L-344',
+          customer: 'Jane Smith',
+          amount: 3500000,
+          purpose: 'Education',
+          status: 'approved',
+          progress: 0,
+          appliedDate: '2024-03-14',
+          dueDate: '2024-06-14',
+          creditScore: 720,
+          risk: 'low',
+          documents: 3
+        },
+        {
+          id: 'L-345',
+          customer: 'Robert Johnson',
+          amount: 7200000,
+          purpose: 'Agriculture',
+          status: 'active',
+          progress: 25,
+          appliedDate: '2024-03-13',
+          dueDate: '2024-09-13',
+          creditScore: 590,
+          risk: 'high',
+          documents: 4
+        },
+        {
+          id: 'L-346',
+          customer: 'Sarah Williams',
+          amount: 2100000,
+          purpose: 'Medical',
+          status: 'paid',
+          progress: 100,
+          appliedDate: '2024-02-20',
+          dueDate: '2024-05-20',
+          creditScore: 710,
+          risk: 'low',
+          documents: 2
+        }
+      ]);
+      setLoading(false);
+    }, 500);
+  }, []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
@@ -45,26 +110,44 @@ export default function LoansPage() {
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'approved': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
       case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
       case 'overdue': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
       case 'paid': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
-      case 'rejected': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'pending': return Clock;
-      case 'active': return CreditCard;
-      case 'overdue': return AlertTriangle;
-      case 'paid': return CheckCircle;
-      case 'rejected': return XCircle;
-      default: return CreditCard;
+  const getRiskBadge = (risk: string) => {
+    switch(risk) {
+      case 'low':
+        return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'LOW' };
+      case 'medium':
+        return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'MEDIUM' };
+      case 'high':
+        return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'HIGH' };
+      default:
+        return { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-400', label: 'UNKNOWN' };
     }
   };
 
-  const totalPages = Math.ceil(total / 10);
+  const filteredLoans = loans.filter(loan => {
+    const matchesSearch = 
+      loan.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      loan.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      loan.purpose.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (statusFilter === 'all') return matchesSearch;
+    return matchesSearch && loan.status === statusFilter;
+  });
+
+  const stats = {
+    total: loans.length,
+    active: loans.filter(l => l.status === 'active').length,
+    pending: loans.filter(l => l.status === 'pending' || l.status === 'approved').length,
+    overdue: loans.filter(l => l.status === 'overdue').length,
+    paid: loans.filter(l => l.status === 'paid').length
+  };
 
   return (
     <div className="space-y-6">
@@ -86,22 +169,26 @@ export default function LoansPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-800">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Loans</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{total}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-800">
           <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
-          <p className="text-2xl font-bold text-green-600">156</p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-800">
           <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-          <p className="text-2xl font-bold text-yellow-600">28</p>
+          <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</p>
         </div>
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-800">
           <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
-          <p className="text-2xl font-bold text-red-600">23</p>
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.overdue}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Paid</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.paid}</p>
         </div>
       </div>
 
@@ -115,16 +202,17 @@ export default function LoansPage() {
               placeholder="Search by loan ID, customer, or purpose..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
           >
             <option value="all">All Loans</option>
             <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
             <option value="active">Active</option>
             <option value="overdue">Overdue</option>
             <option value="paid">Paid</option>
@@ -142,7 +230,7 @@ export default function LoansPage() {
             <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-2 text-gray-600 dark:text-gray-400">Loading loans...</p>
           </div>
-        ) : loans.length === 0 ? (
+        ) : filteredLoans.length === 0 ? (
           <div className="p-8 text-center">
             <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-3" />
             <p className="text-gray-600 dark:text-gray-400">No loans found</p>
@@ -156,42 +244,41 @@ export default function LoansPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Customer</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Amount</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Risk</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Progress</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Dates</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Applied</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                {loans.map((loan: any) => {
-                  const StatusIcon = getStatusIcon(loan.status);
+                {filteredLoans.map((loan) => {
+                  const risk = getRiskBadge(loan.risk);
                   const progress = loan.amount > 0 ? (loan.amountPaid / loan.amount) * 100 : 0;
                   
                   return (
                     <tr key={loan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.loanId}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.id}</p>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
                             <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {loan.customer?.firstName} {loan.customer?.surname}
-                            </p>
-                          </div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.customer}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">
-                          {formatCurrency(loan.amount)}
-                        </p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(loan.status)}`}>
-                          <StatusIcon className="w-3 h-3" />
                           {loan.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${risk.bg} ${risk.text}`}>
+                          {risk.label}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -214,12 +301,7 @@ export default function LoansPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(loan.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
+                        <p className="text-sm text-gray-900 dark:text-white">{loan.appliedDate}</p>
                       </td>
                       <td className="px-4 py-3">
                         <Link
@@ -235,33 +317,6 @@ export default function LoansPage() {
                 })}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Page {page} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-md text-sm disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>
