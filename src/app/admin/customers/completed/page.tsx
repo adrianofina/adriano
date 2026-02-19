@@ -308,7 +308,6 @@ export default function CompletedCustomersPage() {
                     <span className="text-xs text-gray-600 dark:text-gray-400">{customer.email}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CreditCard className="w-3 h-3 text-gray-400" />
                     <span className="text-xs text-gray-600 dark:text-gray-400">
                       Last loan: {customer.lastLoanId} • {formatCurrency(customer.lastLoanAmount)}
                     </span>
@@ -404,31 +403,6 @@ export default function CompletedCustomersPage() {
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Loyalty Program Banner */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-900/30 p-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-            <Star className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Loyalty Program</h3>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-              Reward your best customers with better rates and faster approvals.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white dark:bg-gray-900 rounded-lg p-2">
-                <p className="text-[9px] text-gray-500 dark:text-gray-400">Premium Customers</p>
-                <p className="text-base font-bold text-gray-900 dark:text-white">156</p>
-              </div>
-              <div className="bg-white dark:bg-gray-900 rounded-lg p-2">
-                <p className="text-[9px] text-gray-500 dark:text-gray-400">Repeat Rate</p>
-                <p className="text-base font-bold text-green-600">78%</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

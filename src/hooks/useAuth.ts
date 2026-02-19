@@ -3,14 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export type UserRole = 'super_admin' | 'admin' | 'loan_officer' | 'customer_service' | 'viewer' | 'customer' | null;
+export type UserRole = 'super_admin' | 'admin' | 'loan_officer' | 'customer_service' | 'viewer' | 'customer';
 
 export interface User {
+  id: string;
   email: string;
+  name: string;
   role: UserRole;
-  name?: string;
-  avatar?: string;
   isStaff: boolean;
+  avatar?: string;
+  lastLogin?: string;
 }
 
 export function useAuth() {
@@ -18,63 +20,73 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const COMPANY_DOMAIN = '@adrianmicrofinance.co.tz';
-
-  const getRoleFromEmail = (email: string): UserRole => {
-    if (!email.includes(COMPANY_DOMAIN)) return 'customer';
-    
-    if (email.startsWith('superadmin')) return 'super_admin';
-    if (email.startsWith('admin')) return 'admin';
-    if (email.startsWith('loan.officer')) return 'loan_officer';
-    if (email.startsWith('customer.service')) return 'customer_service';
-    if (email.startsWith('viewer')) return 'viewer';
-    
-    return 'admin';
-  };
-
-  const login = async (email: string, password: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const role = getRoleFromEmail(email);
-    const isStaff = email.includes(COMPANY_DOMAIN);
-    
-    const userData: User = {
-      email,
-      role,
-      isStaff,
-      name: email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    };
-    
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    
-    return true;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/login');
-  };
-
+  // Load user on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    const loadUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        setUser(data.user);
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUser();
   }, []);
 
-  const redirectToDashboard = () => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+  const login = async (email: string, password: string) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (user.isStaff) {
-      router.push('/admin/dashboard');
-    } else {
-      router.push('/customer/dashboard');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signup = async (name: string, email: string, password: string) => {
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Signup failed');
+      }
+
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
     }
   };
 
@@ -82,9 +94,9 @@ export function useAuth() {
     user,
     isLoading,
     login,
+    signup,
     logout,
-    redirectToDashboard,
     isStaff: user?.isStaff || false,
-    role: user?.role
+    role: user?.role || null
   };
 }

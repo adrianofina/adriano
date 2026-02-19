@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Adrian CIMS - Microfinance Management System",
+  title: "Adrian CIMS - Microfinance Management",
   description: "Your trusted partner for financial solutions",
 };
 

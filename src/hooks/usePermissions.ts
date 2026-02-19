@@ -1,9 +1,8 @@
 ﻿'use client';
 
 import { UserRole, Permission } from '@/types';
-import { useSession } from 'next-auth/react';
+import { useAuth } from './useAuth';
 
-// ========== ROLE-BASED PERMISSION MATRIX ==========
 const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
   super_admin: [
     'view_customers',
@@ -62,23 +61,42 @@ const PERMISSION_MATRIX: Record<UserRole, Permission[]> = {
   viewer: [
     'view_customers',
     'view_loans'
-  ]
+  ],
+
+  customer: []
 };
 
 export function usePermissions() {
-  // FOR DEMO: Change this to test different roles
-  // In production, this would come from your auth system
-  const userRole: UserRole = 'super_admin'; // Try: 'super_admin', 'admin', 'loan_officer', 'customer_service', 'viewer'
+  const { user, role: userRole } = useAuth();
   
-  // Mock delegated permissions (in production, these would come from API)
-  const delegatedPermissions: Permission[] = [];
-  
-  // Combine base permissions with delegated ones
-  const basePermissions = PERMISSION_MATRIX[userRole] || [];
-  const allPermissions = [...basePermissions, ...delegatedPermissions];
+  if (!user || !userRole) {
+    return {
+      userRole: null,
+      hasPermission: () => false,
+      hasAnyPermission: () => false,
+      hasAllPermissions: () => false,
+      canApproveStage1: false,
+      canApproveStage2: false,
+      canDisburse: false,
+      canMarkPaid: false,
+      canDeleteCustomer: false,
+      canDeleteLoan: false,
+      canManageUsers: false,
+      canAuditLogs: false,
+      canUploadCustomers: false,
+      canDelegate: false,
+      canEditCustomer: false,
+      getLoanWorkflowStep: () => 0,
+      getLoanApprovalChain: () => ({}),
+      getRoleBadgeColor: () => 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+      getLoanStatusColor: () => 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+    };
+  }
+
+  const basePermissions = PERMISSION_MATRIX[userRole as UserRole] || [];
   
   const hasPermission = (permission: Permission): boolean => {
-    return allPermissions.includes(permission);
+    return basePermissions.includes(permission);
   };
 
   const hasAnyPermission = (permissions: Permission[]): boolean => {
@@ -89,7 +107,6 @@ export function usePermissions() {
     return permissions.every(p => hasPermission(p));
   };
 
-  // Specific permission checks
   const canApproveStage1 = hasPermission('approve_loan_stage1');
   const canApproveStage2 = hasPermission('approve_loan_stage2');
   const canDisburse = hasPermission('disburse_loan');
@@ -100,8 +117,8 @@ export function usePermissions() {
   const canAuditLogs = hasPermission('audit_logs');
   const canUploadCustomers = hasPermission('upload_customers');
   const canDelegate = hasPermission('delegate_permissions');
+  const canEditCustomer = hasPermission('edit_customer');
 
-  // ===== LOAN WORKFLOW WITH FULL TRANSPARENCY =====
   const getLoanWorkflowStep = (loan: any): number => {
     if (loan.status === 'rejected' || loan.status === 'cancelled') return 0;
     if (!loan.stage1Approval) return 1;
@@ -132,7 +149,6 @@ export function usePermissions() {
     };
   };
 
-  // ===== UI HELPERS =====
   const getRoleBadgeColor = (role: UserRole): string => {
     switch(role) {
       case 'super_admin': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
@@ -140,6 +156,7 @@ export function usePermissions() {
       case 'loan_officer': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
       case 'customer_service': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
       case 'viewer': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+      case 'customer': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
@@ -161,15 +178,10 @@ export function usePermissions() {
   };
 
   return {
-    // Role info
-    userRole,
-    
-    // Permission checks
+    userRole: userRole as UserRole,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    
-    // Specific permissions
     canApproveStage1,
     canApproveStage2,
     canDisburse,
@@ -180,12 +192,9 @@ export function usePermissions() {
     canAuditLogs,
     canUploadCustomers,
     canDelegate,
-    
-    // Loan workflow
+    canEditCustomer,
     getLoanWorkflowStep,
     getLoanApprovalChain,
-    
-    // UI helpers
     getRoleBadgeColor,
     getLoanStatusColor
   };
