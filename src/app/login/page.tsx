@@ -31,7 +31,6 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Redirect based on role
       if (data.user.isStaff) {
         router.push('/admin/dashboard');
       } else {
@@ -45,17 +44,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      {/* Animated background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-200 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-float animation-delay-2000"></div>
-      </div>
-
-      <div className="relative w-full max-w-md">
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-xl shadow-blue-600/20 dark:shadow-indigo-600/20 mb-4">
+          <div className="inline-flex p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-xl mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back</h2>
@@ -65,7 +58,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Card */}
-        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-8">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -151,48 +144,8 @@ export default function LoginPage() {
               </Link>
             </p>
           </div>
-
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
-            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-3">
-              Demo accounts (any password works)
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="font-medium text-gray-900 dark:text-white">Super Admin</p>
-                <p className="text-gray-600 dark:text-gray-400">superadmin@</p>
-                <p className="text-gray-600 dark:text-gray-400">adrianmicrofinance.co.tz</p>
-              </div>
-              <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="font-medium text-gray-900 dark:text-white">Admin</p>
-                <p className="text-gray-600 dark:text-gray-400">admin@</p>
-                <p className="text-gray-600 dark:text-gray-400">adrianmicrofinance.co.tz</p>
-              </div>
-              <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="font-medium text-gray-900 dark:text-white">Loan Officer</p>
-                <p className="text-gray-600 dark:text-gray-400">loan.officer@</p>
-                <p className="text-gray-600 dark:text-gray-400">adrianmicrofinance.co.tz</p>
-              </div>
-              <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="font-medium text-gray-900 dark:text-white">Customer</p>
-                <p className="text-gray-600 dark:text-gray-400">customer@example.com</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-      `}</style>
     </div>
   );
 }
