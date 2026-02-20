@@ -7,39 +7,43 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("customer")
-  isStaff   Boolean  @default(false)
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String?
+  role         String   @default("customer")
+  isStaff      Boolean  @default(false)
+  avatar       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastLogin    DateTime?
 
-  customers      Customer[] @relation("CreatedByUser")
-  uploadedCustomers Customer[] @relation("UploadedByUser")
-  verifiedCustomers Customer[] @relation("VerifiedByUser")
-  loans          Loan[] @relation("CreatedByUser")
-  approvedLoans1 Loan[] @relation("ApprovedBy1")
-  approvedLoans2 Loan[] @relation("ApprovedBy2")
-  disbursedLoans Loan[] @relation("DisbursedBy")
-  paidLoans      Loan[] @relation("PaidByUser")
-  payments       Payment[] @relation("ReceivedByUser")
+  // Relations - one-to-many
+  customers    Customer[] @relation("CreatedByUser")
+  customerUser Customer?  @relation("CustomerUser") // For the customer account link
+  
+  loans        Loan[]     @relation("CreatedByUser")
+  approvedLoans1 Loan[]   @relation("ApprovedBy1")
+  approvedLoans2 Loan[]   @relation("ApprovedBy2")
+  disbursedLoans Loan[]   @relation("DisbursedBy")
+  paidLoans    Loan[]     @relation("PaidByUser")
+  
+  payments     Payment[]  @relation("ReceivedByUser")
+  auditLogs    AuditLog[]
 
   @@index([email])
-  @@index([role])
 }
 
 model Customer {
   id             String   @id @default(cuid())
   customerId     String   @unique
+  userId         String?  @unique
   firstName      String
   surname        String
   middleName     String?
   phoneNumber    String   @unique
   alternativePhone String?
-  email          String?
+  email          String?  @unique
   dateOfBirth    DateTime?
   age            Int?
   gender         String?
@@ -51,42 +55,27 @@ model Customer {
   monthlyIncome  Float?
   businessName   String?
   maritalStatus  String?
-  dependents     Int?    @default(0)
-  spouseName     String?
-  spousePhone    String?
-  nextOfKinName  String?
-  nextOfKinRelation String?
-  nextOfKinPhone String?
-  guarantorName  String?
-  guarantorRelation String?
-  guarantorPhone String?
-  nationalId     String? @unique
+  dependents     Int?     @default(0)
+  nationalId     String?  @unique
   bankName       String?
   accountNumber  String?
   mobileMoneyProvider String?
   mobileMoneyNumber String?
-  creditScore    Int?    @default(650)
-  riskLevel      String? @default("medium")
-  category       String? @default("Standard")
-  registrationMethod String? @default("app")
-  uploadedById   String?
-  uploadedAt     DateTime?
-  verifiedById   String?
-  verifiedAt     DateTime?
-  totalLoans     Int     @default(0)
-  activeLoans    Int     @default(0)
-  overdueLoans   Int     @default(0)
-  totalBorrowed  Float   @default(0)
-  totalRepaid    Float   @default(0)
+  creditScore    Int?     @default(650)
+  riskLevel      String?  @default("medium")
+  category       String?  @default("Standard")
+  totalLoans     Int      @default(0)
+  activeLoans    Int      @default(0)
+  overdueLoans   Int      @default(0)
+  totalBorrowed  Float    @default(0)
+  totalRepaid    Float    @default(0)
   createdById    String
   createdAt      DateTime @default(now())
-  updatedById    String?
   updatedAt      DateTime @updatedAt
 
   loans          Loan[]
   createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
-  uploadedBy     User?    @relation("UploadedByUser", fields: [uploadedById], references: [id])
-  verifiedBy     User?    @relation("VerifiedByUser", fields: [verifiedById], references: [id])
+  user           User?    @relation("CustomerUser", fields: [userId], references: [id])
 
   @@unique([firstName, surname, phoneNumber])
   @@index([customerId])
@@ -117,7 +106,6 @@ model Loan {
   disbursedAt    DateTime?
   paidById       String?
   paidAt         DateTime?
-  updatedById    String?
   updatedAt      DateTime @updatedAt
 
   customer       Customer @relation(fields: [customerId], references: [id])
@@ -149,4 +137,23 @@ model Payment {
   receivedBy   User     @relation("ReceivedByUser", fields: [receivedById], references: [id])
 
   @@index([loanId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  timestamp   DateTime @default(now())
+  userId      String
+  userName    String
+  userRole    String
+  action      String
+  entityType  String
+  entityId    String
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([timestamp])
+  @@index([userId])
 }
