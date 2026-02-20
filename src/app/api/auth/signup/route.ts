@@ -13,9 +13,11 @@ const prisma = new PrismaClient({ adapter });
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    const body = await request.json();
+    const { email, password, name } = body;
 
-    // Validate input
+    console.log('Signup attempt for:', email);
+
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
@@ -23,7 +25,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user already exists
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user exists
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -52,13 +61,19 @@ export async function POST(request: Request) {
       }
     });
 
+    console.log('User created:', user.email);
+
     // Generate token
-    const token = generateToken({ id: user.id, email: user.email, role: user.role });
+    const token = generateToken({ 
+      id: user.id, 
+      email: user.email, 
+      role: user.role 
+    });
 
     // Set cookie
-    setAuthCookie(token);
+    await setAuthCookie(token);
 
-    // Return user data (without password)
+    // Return user without password
     const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json({
@@ -66,10 +81,10 @@ export async function POST(request: Request) {
       message: 'User created successfully'
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Signup error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }

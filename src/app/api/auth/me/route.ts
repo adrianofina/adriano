@@ -13,7 +13,7 @@ const prisma = new PrismaClient({ adapter });
 
 export async function GET() {
   try {
-    const token = getAuthCookie();
+    const token = await getAuthCookie();
 
     if (!token) {
       return NextResponse.json({ user: null });

@@ -29,8 +29,9 @@ export function verifyToken(token: string): any {
   }
 }
 
-export function setAuthCookie(token: string): void {
-  cookies().set('auth_token', token, {
+export async function setAuthCookie(token: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -39,12 +40,14 @@ export function setAuthCookie(token: string): void {
   });
 }
 
-export function getAuthCookie(): string | undefined {
-  return cookies().get('auth_token')?.value;
+export async function getAuthCookie(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  return cookieStore.get('auth_token')?.value;
 }
 
-export function removeAuthCookie(): void {
-  cookies().delete('auth_token');
+export async function removeAuthCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete('auth_token');
 }
 
 export function getRoleFromEmail(email: string): { role: string; isStaff: boolean } {
