@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -18,18 +18,16 @@ model User {
   updatedAt    DateTime @updatedAt
   lastLogin    DateTime?
 
-  // Relations - one-to-many
   customers    Customer[] @relation("CreatedByUser")
-  customerUser Customer?  @relation("CustomerUser") // For the customer account link
-  
+  customerUser Customer?  @relation("CustomerUser")
   loans        Loan[]     @relation("CreatedByUser")
   approvedLoans1 Loan[]   @relation("ApprovedBy1")
   approvedLoans2 Loan[]   @relation("ApprovedBy2")
   disbursedLoans Loan[]   @relation("DisbursedBy")
   paidLoans    Loan[]     @relation("PaidByUser")
-  
   payments     Payment[]  @relation("ReceivedByUser")
   auditLogs    AuditLog[]
+  courtCases   CourtCase[] @relation("FiledByUser")
 
   @@index([email])
 }
@@ -64,6 +62,17 @@ model Customer {
   creditScore    Int?     @default(650)
   riskLevel      String?  @default("medium")
   category       String?  @default("Standard")
+  
+  // Document tracking
+  documents      CustomerDocument[]
+  documentStatus Json?    // Track which documents are missing/uploaded
+  
+  // Court cases
+  courtCases     CourtCase[]
+  hasCourtCase   Boolean  @default(false)
+  courtCaseNotes String?
+  
+  // Statistics
   totalLoans     Int      @default(0)
   activeLoans    Int      @default(0)
   overdueLoans   Int      @default(0)
@@ -80,6 +89,61 @@ model Customer {
   @@unique([firstName, surname, phoneNumber])
   @@index([customerId])
   @@index([phoneNumber])
+}
+
+model CustomerDocument {
+  id             String   @id @default(cuid())
+  customerId     String
+  documentType   String   // national_id, passport_photo, bank_statement, salary_slip, employment_letter, mdhamini_letter, business_license, tax_clearance, court_document
+  fileName       String?
+  fileUrl        String?
+  fileSize       Int?
+  uploadedAt     DateTime?
+  uploadedById   String?
+  verifiedAt     DateTime?
+  verifiedById   String?
+  status         String   @default("missing") // missing, uploaded, verified, rejected
+  notes          String?
+  expiryDate     DateTime?
+  isCourtDocument Boolean @default(false) // Mark if this is from a court case
+  courtCaseId    String?  // Link to court case if applicable
+
+  customer       Customer @relation(fields: [customerId], references: [id])
+  uploadedBy     User?    @relation(fields: [uploadedById], references: [id])
+  verifiedBy     User?    @relation(fields: [verifiedById], references: [id])
+  courtCase      CourtCase? @relation(fields: [courtCaseId], references: [id])
+
+  @@unique([customerId, documentType])
+  @@index([customerId])
+  @@index([status])
+}
+
+model CourtCase {
+  id             String   @id @default(cuid())
+  caseNumber     String   @unique
+  customerId     String
+  filingDate     DateTime @default(now())
+  courtName      String
+  judgeName      String?
+  caseType       String   // non_payment, fraud, dispute, other
+  status         String   @default("active") // active, resolved, appealed, closed
+  amountInvolved Float?
+  settlementTerms String? // How they should pay (court-ordered)
+  settlementAmount Float?
+  settlementSchedule String? // Monthly, weekly, etc.
+  nextHearingDate DateTime?
+  resolutionDate DateTime?
+  notes          String?
+  filedById      String
+  documents      CustomerDocument[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer       Customer @relation(fields: [customerId], references: [id])
+  filedBy        User     @relation("FiledByUser", fields: [filedById], references: [id])
+
+  @@index([customerId])
+  @@index([status])
 }
 
 model Loan {
@@ -107,6 +171,11 @@ model Loan {
   paidById       String?
   paidAt         DateTime?
   updatedAt      DateTime @updatedAt
+  
+  // Court case link
+  courtCaseId    String?
+  isCourtOrdered Boolean  @default(false)
+  courtOrderTerms String? // Special terms from court
 
   customer       Customer @relation(fields: [customerId], references: [id])
   createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
@@ -114,6 +183,7 @@ model Loan {
   approvedBy2    User?    @relation("ApprovedBy2", fields: [approvedById2], references: [id])
   disbursedBy    User?    @relation("DisbursedBy", fields: [disbursedById], references: [id])
   paidBy         User?    @relation("PaidByUser", fields: [paidById], references: [id])
+  courtCase      CourtCase? @relation(fields: [courtCaseId], references: [id])
 
   payments       Payment[]
 
