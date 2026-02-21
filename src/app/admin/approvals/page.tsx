@@ -1,6 +1,6 @@
-﻿'use client';
+﻿"use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Clock, 
@@ -11,58 +11,56 @@ import {
   Calendar,
   FileText,
   ArrowRight,
-  Shield,
-  AlertTriangle
+  RefreshCw
 } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
+
+interface Approval {
+  id: string;
+  loanId: string;
+  customer: string;
+  amount: number;
+  purpose: string;
+  appliedDate: string;
+  creditScore: number;
+  risk: string;
+  stage: number;
+  approvedBy?: string;
+}
 
 export default function ApprovalsPage() {
-  const { userRole, canApproveStage1, canApproveStage2 } = usePermissions();
-  const [activeTab, setActiveTab] = useState('stage1');
+  const [stage1, setStage1] = useState<Approval[]>([]);
+  const [stage2, setStage2] = useState<Approval[]>([]);
+  const [counts, setCounts] = useState({ stage1: 0, stage2: 0 });
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'stage1' | 'stage2'>('stage1');
 
-  // Mock data - will be replaced with real data from API
-  const stage1Approvals = [
-    {
-      id: 'L-343',
-      customer: 'John Doe',
-      amount: 5000000,
-      purpose: 'Business Expansion',
-      appliedDate: '2024-03-15',
-      creditScore: 680,
-      risk: 'low',
-      documents: 3
-    },
-    {
-      id: 'L-347',
-      customer: 'Mary Johnson',
-      amount: 3500000,
-      purpose: 'Education',
-      appliedDate: '2024-03-14',
-      creditScore: 720,
-      risk: 'low',
-      documents: 2
+  const fetchApprovals = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/approvals');
+      const data = await res.json();
+      setStage1(data.stage1 || []);
+      setStage2(data.stage2 || []);
+      setCounts(data.counts || { stage1: 0, stage2: 0 });
+    } catch (error) {
+      console.error('Error:', error);
+      setStage1([]);
+      setStage2([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const stage2Approvals = [
-    {
-      id: 'L-344',
-      customer: 'Jane Smith',
-      amount: 3500000,
-      purpose: 'Education',
-      appliedDate: '2024-03-14',
-      approvedBy: 'Admin User',
-      approvedAt: '2024-03-15',
-      creditScore: 720,
-      risk: 'low'
-    }
-  ];
+  useEffect(() => {
+    fetchApprovals();
+  }, []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
       style: 'currency',
       currency: 'TZS',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount).replace('TZS', 'TSh');
   };
 
@@ -75,238 +73,171 @@ export default function ApprovalsPage() {
     }
   };
 
-  if (!canApproveStage1 && !canApproveStage2) {
+  if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Access Restricted</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            You don't have permission to approve loans.
-          </p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
+  const currentApprovals = activeTab === 'stage1' ? stage1 : stage2;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Pending Approvals</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-          Review and approve loan applications
-        </p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Pending Approvals</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            {counts.stage1 + counts.stage2} loans waiting for review
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchApprovals}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+          <Link
+            href="/admin/loans"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
+          >
+            ← Back to Loans
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-              <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Stage 1 Approvals</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stage1Approvals.length}</p>
+              <p className="text-sm text-gray-600">Stage 1 Approvals</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.stage1}</p>
             </div>
           </div>
         </div>
-        
-        {userRole === 'super_admin' && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <Shield className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Stage 2 Approvals</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stage2Approvals.length}</p>
-              </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Stage 2 Approvals</p>
+              <p className="text-2xl font-bold text-gray-900">{counts.stage2}</p>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-800">
         <div className="flex space-x-8">
-          {canApproveStage1 && (
-            <button
-              onClick={() => setActiveTab('stage1')}
-              className={`pb-4 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'stage1'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Stage 1 Approvals ({stage1Approvals.length})
-            </button>
-          )}
-          {canApproveStage2 && (
-            <button
-              onClick={() => setActiveTab('stage2')}
-              className={`pb-4 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'stage2'
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              Stage 2 Approvals ({stage2Approvals.length})
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('stage1')}
+            className={`pb-4 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'stage1'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Stage 1 ({counts.stage1})
+          </button>
+          <button
+            onClick={() => setActiveTab('stage2')}
+            className={`pb-4 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'stage2'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Stage 2 ({counts.stage2})
+          </button>
         </div>
       </div>
 
       {/* Approval Cards */}
-      <div className="space-y-4">
-        {activeTab === 'stage1' && stage1Approvals.map((loan) => (
-          <div key={loan.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div className="flex-1">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{loan.customer}</h3>
-                      <span className="text-sm text-gray-500">#{loan.id}</span>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRiskColor(loan.risk)}`}>
-                        {loan.risk.toUpperCase()} RISK
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Purpose</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.purpose}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Applied</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.appliedDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Credit Score</p>
-                        <p className={`text-sm font-medium ${
-                          loan.creditScore >= 700 ? 'text-green-600' :
-                          loan.creditScore >= 600 ? 'text-yellow-600' :
-                          'text-red-600'
-                        }`}>
-                          {loan.creditScore}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {loan.documents} documents uploaded
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 lg:w-48">
-                <Link
-                  href={`/admin/loans/${loan.id}`}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
-                >
-                  <FileText className="w-4 h-4" />
-                  View Details
-                </Link>
-                <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700">
-                  <CheckCircle className="w-4 h-4" />
-                  Approve
-                </button>
-                <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-red-300 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50">
-                  <XCircle className="w-4 h-4" />
-                  Decline
-                </button>
-              </div>
-            </div>
+      <div className="space-y-3">
+        {currentApprovals.length === 0 ? (
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-12 text-center border border-gray-200 dark:border-gray-800">
+            <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400">No pending approvals</p>
           </div>
-        ))}
-
-        {activeTab === 'stage2' && stage2Approvals.map((loan) => (
-          <div key={loan.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div className="flex-1">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        ) : (
+          currentApprovals.map((loan) => (
+            <div key={loan.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">{loan.customer}</h3>
+                    <span className="text-xs text-gray-500">#{loan.loanId}</span>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRiskColor(loan.risk)}`}>
+                      {loan.risk.toUpperCase()}
+                    </span>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{loan.customer}</h3>
-                      <span className="text-sm text-gray-500">#{loan.id}</span>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRiskColor(loan.risk)}`}>
-                        {loan.risk.toUpperCase()} RISK
-                      </span>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                    <div>
+                      <p className="text-xs text-gray-500">Amount</p>
+                      <p className="text-sm font-bold text-gray-900 break-all">{formatCurrency(loan.amount)}</p>
                     </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Purpose</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{loan.purpose}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Credit Score</p>
-                        <p className={`text-sm font-medium ${
-                          loan.creditScore >= 700 ? 'text-green-600' :
-                          loan.creditScore >= 600 ? 'text-yellow-600' :
-                          'text-red-600'
-                        }`}>
-                          {loan.creditScore}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Purpose</p>
+                      <p className="text-sm text-gray-600 truncate">{loan.purpose}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Applied</p>
+                      <p className="text-sm text-gray-600">{loan.appliedDate}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Credit Score</p>
+                      <p className="text-sm font-medium text-gray-900">{loan.creditScore}</p>
+                    </div>
+                  </div>
 
-                    <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        <span className="text-sm font-medium text-green-800 dark:text-green-300">
-                          Approved by {loan.approvedBy}
-                        </span>
-                      </div>
-                      <p className="text-xs text-green-700 dark:text-green-400">
-                        {loan.approvedAt} • Stage 1 approval complete
+                  {loan.approvedBy && (
+                    <div className="mt-3 p-2 bg-green-50 rounded-lg">
+                      <p className="text-xs text-green-700">
+                        ✓ Approved by {loan.approvedBy}
                       </p>
                     </div>
-                  </div>
+                  )}
+                </div>
+
+                <div className="flex sm:flex-col gap-2">
+                  <Link
+                    href={`/admin/loans/${loan.id}`}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs rounded-lg hover:bg-blue-100"
+                  >
+                    <FileText className="w-3 h-3" />
+                    Details
+                  </Link>
+                  {activeTab === 'stage1' && (
+                    <>
+                      <button className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
+                        Approve
+                      </button>
+                      <button className="px-3 py-1.5 border border-red-300 text-red-700 text-xs rounded-lg hover:bg-red-50">
+                        Decline
+                      </button>
+                    </>
+                  )}
+                  {activeTab === 'stage2' && (
+                    <button className="px-3 py-1.5 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700">
+                      Final Approve
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <div className="flex flex-col gap-3 lg:w-48">
-                <Link
-                  href={`/admin/loans/${loan.id}`}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
-                >
-                  <FileText className="w-4 h-4" />
-                  View Details
-                </Link>
-                <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700">
-                  <CheckCircle className="w-4 h-4" />
-                  Final Approve
-                </button>
-                <button className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-red-300 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50">
-                  <XCircle className="w-4 h-4" />
-                  Decline
-                </button>
-              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
