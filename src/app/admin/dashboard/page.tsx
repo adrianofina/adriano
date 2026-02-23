@@ -19,19 +19,9 @@ import {
   UserCheck,
   FileText,
   BarChart3,
-  RefreshCw,
-  Moon,
-  Sun,
-  Wallet,
-  Landmark,
-  Percent,
-  CalendarDays,
-  Activity,
-  PieChart,
-  TrendingDown,
-  TrendingUp as TrendUp
+  RefreshCw
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface DashboardStats {
   totalCustomers: number;
@@ -41,7 +31,6 @@ interface DashboardStats {
   pendingApprovals: number;
   totalDisbursed: number;
   totalRepaid: number;
-  outstandingBalance: number;
   portfolioAtRisk: number;
   newCustomersToday: number;
   paymentsToday: number;
@@ -61,44 +50,86 @@ interface PendingLoan {
   customer: {
     firstName: string;
     surname: string;
-    riskLevel: string;
   };
   amount: number;
   purpose: string;
   createdAt: string;
   stage: number;
+  riskLevel: string;
 }
 
-export default function EnhancedDashboard() {
-  const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [pendingApprovals, setPendingApprovals] = useState<PendingLoan[]>([]);
+interface DisbursementReady {
+  id: string;
+  loanId: string;
+  customer: {
+    firstName: string;
+    surname: string;
+  };
+  amount: number;
+  approvedBy: {
+    name: string;
+  };
+  approvedAt: string;
+  method: string;
+}
+
+interface RecentPayment {
+  id: string;
+  loanId: string;
+  customer: {
+    firstName: string;
+    surname: string;
+  };
+  amount: number;
+  receivedBy: {
+    name: string;
+  };
+  receivedAt: string;
+  confirmedById: string | null;
+}
+
+export default function AdminDashboard() {
+  const { userRole, canDisburse, canApproveStage2 } = usePermissions();
+  const [timeframe, setTimeframe] = useState('today');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [timeframe, setTimeframe] = useState('week');
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingLoan[]>([]);
+  const [readyForDisbursement, setReadyForDisbursement] = useState<DisbursementReady[]>([]);
+  const [recentlyPaid, setRecentlyPaid] = useState<RecentPayment[]>([]);
 
   const fetchDashboardData = async () => {
     try {
       setRefreshing(true);
       const token = localStorage.getItem('token');
       
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-
-      const [statsRes, pendingRes] = await Promise.all([
-        fetch('/api/admin/stats', { headers }),
-        fetch('/api/admin/pending-approvals', { headers })
+      // Fetch all dashboard data in parallel
+      const [statsRes, pendingRes, disbursementRes, paymentsRes] = await Promise.all([
+        fetch('/api/admin/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/admin/pending-approvals', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/admin/ready-for-disbursement', {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/admin/recent-payments', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
       ]);
 
-      const [statsData, pendingData] = await Promise.all([
+      const [statsData, pendingData, disbursementData, paymentsData] = await Promise.all([
         statsRes.json(),
-        pendingRes.json()
+        pendingRes.json(),
+        disbursementRes.json(),
+        paymentsRes.json()
       ]);
 
       if (statsRes.ok) setStats(statsData);
       if (pendingRes.ok) setPendingApprovals(pendingData);
+      if (disbursementRes.ok) setReadyForDisbursement(disbursementData);
+      if (paymentsRes.ok) setRecentlyPaid(paymentsData);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -109,12 +140,9 @@ export default function EnhancedDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-    
-    // Refresh every 60 seconds
-    const interval = setInterval(fetchDashboardData, 60000);
-    return () => clearInterval(interval);
   }, []);
 
+  // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
       style: 'currency',
@@ -124,168 +152,186 @@ export default function EnhancedDashboard() {
     }).format(amount).replace('TZS', 'TSh');
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  // Format stats for display
+  const getDisplayStats = () => {
+    if (!stats) return [];
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hour ago`;
-    if (diffDays < 7) return `${diffDays} day ago`;
-    return date.toLocaleDateString();
+    return [
+      {
+        id: 1,
+        title: 'Total Customers',
+        value: stats.totalCustomers.toLocaleString(),
+        change: stats.newCustomersToday > 0 ? `+${stats.newCustomersToday} today` : 'No new today',
+        trend: stats.newCustomersToday > 0 ? 'up' : 'neutral',
+        icon: Users,
+        color: 'blue',
+        details: `${stats.totalCustomers} total customers`
+      },
+      {
+        id: 2,
+        title: 'Active Loans',
+        value: stats.activeLoans.toLocaleString(),
+        change: stats.loansDisbursedToday > 0 ? `+${stats.loansDisbursedToday} today` : 'No new today',
+        trend: stats.loansDisbursedToday > 0 ? 'up' : 'neutral',
+        icon: CreditCard,
+        color: 'green',
+        details: `${formatCurrency(stats.totalDisbursed)} outstanding`
+      },
+      {
+        id: 3,
+        title: 'Total Disbursed',
+        value: formatCurrency(stats.totalDisbursed),
+        change: `${stats.loansDisbursedToday} loans today`,
+        trend: stats.loansDisbursedToday > 0 ? 'up' : 'neutral',
+        icon: DollarSign,
+        color: 'purple',
+        details: `Repaid: ${formatCurrency(stats.totalRepaid)}`
+      },
+      {
+        id: 4,
+        title: 'Overdue Loans',
+        value: stats.overdueLoans.toLocaleString(),
+        change: `${stats.portfolioAtRisk.toFixed(1)}% at risk`,
+        trend: stats.overdueLoans > 0 ? 'down' : 'neutral',
+        icon: AlertTriangle,
+        color: 'red',
+        details: `${stats.overdueLoans} loans overdue`
+      }
+    ];
   };
 
-  const getRiskColor = (risk: string) => {
-    switch (risk?.toLowerCase()) {
-      case 'low': return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/20';
-      case 'medium': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/20';
-      case 'high': return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/20';
-      case 'critical': return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20';
-      default: return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+  const quickActions = [
+    {
+      label: 'New Customer',
+      href: '/admin/customers/new',
+      icon: Users,
+      color: 'blue',
+      roles: ['super_admin', 'admin', 'loan_officer', 'customer_service']
+    },
+    {
+      label: 'Create Loan',
+      href: '/admin/loans/new',
+      icon: CreditCard,
+      color: 'green',
+      roles: ['super_admin', 'admin', 'loan_officer']
+    },
+    {
+      label: 'Review Approvals',
+      href: '/admin/approvals',
+      icon: Clock,
+      color: 'yellow',
+      roles: ['super_admin', 'admin'],
+      badge: stats?.pendingApprovals || 0
+    },
+    {
+      label: 'Manual Upload',
+      href: '/admin/uploads',
+      icon: FileText,
+      color: 'purple',
+      roles: ['super_admin', 'admin', 'loan_officer', 'customer_service']
     }
-  };
+  ];
+
+  // Add disbursement action for super admins
+  if (userRole === 'super_admin' && readyForDisbursement.length > 0) {
+    quickActions.push({
+      label: 'Disburse Funds',
+      href: '/admin/disbursements',
+      icon: DollarSign,
+      color: 'emerald',
+      roles: ['super_admin'],
+      badge: readyForDisbursement.length
+    });
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  const statCards = [
-    {
-      title: 'Total Customers',
-      value: stats?.totalCustomers || 0,
-      change: stats?.newCustomersToday || 0,
-      changeLabel: 'new today',
-      icon: Users,
-      color: 'blue',
-      bgColor: 'bg-blue-50 dark:bg-blue-950/30',
-      textColor: 'text-blue-600 dark:text-blue-400',
-      borderColor: 'border-blue-200 dark:border-blue-800/30'
-    },
-    {
-      title: 'Active Loans',
-      value: stats?.activeLoans || 0,
-      subValue: formatCurrency(stats?.outstandingBalance || 0),
-      subLabel: 'outstanding',
-      icon: CreditCard,
-      color: 'green',
-      bgColor: 'bg-green-50 dark:bg-green-950/30',
-      textColor: 'text-green-600 dark:text-green-400',
-      borderColor: 'border-green-200 dark:border-green-800/30'
-    },
-    {
-      title: 'Total Portfolio',
-      value: formatCurrency(stats?.totalDisbursed || 0),
-      subValue: `${(stats?.portfolioAtRisk || 0).toFixed(1)}%`,
-      subLabel: 'at risk',
-      icon: DollarSign,
-      color: 'purple',
-      bgColor: 'bg-purple-50 dark:bg-purple-950/30',
-      textColor: 'text-purple-600 dark:text-purple-400',
-      borderColor: 'border-purple-200 dark:border-purple-800/30'
-    },
-    {
-      title: 'Overdue Loans',
-      value: stats?.overdueLoans || 0,
-      change: stats?.overdueLoans || 0,
-      changeLabel: 'need attention',
-      icon: AlertTriangle,
-      color: 'red',
-      bgColor: 'bg-red-50 dark:bg-red-950/30',
-      textColor: 'text-red-600 dark:text-red-400',
-      borderColor: 'border-red-200 dark:border-red-800/30'
-    }
-  ];
+  const displayStats = getDisplayStats();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Welcome back, <span className="text-blue-600 dark:text-blue-400">{user?.name?.split(' ')[0] || 'Admin'}</span>
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Here's what's happening with your microfinance today.
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Time range selector */}
-            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1">
-              {['day', 'week', 'month'].map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setTimeframe(period)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    timeframe === period
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {period.charAt(0).toUpperCase() + period.slice(1)}
-                </button>
-              ))}
-            </div>
-            
-            {/* Refresh button */}
-            <button
-              onClick={fetchDashboardData}
-              disabled={refreshing}
-              className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <RefreshCw className={`w-4 h-4 text-gray-600 dark:text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+    <div className="space-y-6">
+      {/* ===== HEADER ===== */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Welcome back, {userRole?.replace('_', ' ').toUpperCase()}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Refresh Button */}
+          <button
+            onClick={fetchDashboardData}
+            disabled={refreshing}
+            className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+
+          {/* Time Range Selector */}
+          <div className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-1">
+            {['today', 'week', 'month'].map((period) => (
+              <button
+                key={period}
+                onClick={() => setTimeframe(period)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  timeframe === period
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {period.charAt(0).toUpperCase() + period.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((stat, index) => {
+      {/* ===== STATS GRID ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {displayStats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
-              key={index}
-              className={`bg-white dark:bg-gray-900 rounded-xl border ${stat.borderColor} shadow-sm hover:shadow-md transition-all p-6`}
+              key={stat.id}
+              className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-5 hover:shadow-md transition-all"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                  <Icon className={`w-6 h-6 ${stat.textColor}`} />
+              <div className="flex items-center justify-between mb-3">
+                <div className={`p-2.5 bg-${stat.color}-100 dark:bg-${stat.color}-900/20 rounded-lg`}>
+                  <Icon className={`w-5 h-5 text-${stat.color}-600 dark:text-${stat.color}-400`} />
                 </div>
-                {stat.change !== undefined && stat.change > 0 && (
-                  <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-2 py-1 rounded-full">
-                    <TrendUp className="w-3 h-3" />
-                    +{stat.change}
-                  </span>
-                )}
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                  stat.trend === 'up'
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                    : stat.trend === 'down'
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {stat.change}
+                </span>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.title}</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{stat.value}</p>
-              {stat.subValue && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-500">{stat.subLabel}</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{stat.subValue}</span>
-                </div>
-              )}
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{stat.details}</p>
             </div>
           );
         })}
       </div>
 
-      {/* Main Content Grid */}
+      {/* ===== MAIN CONTENT GRID ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Pending Approvals */}
+        {/* ===== LEFT COLUMN - PENDING APPROVALS ===== */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+          {/* Pending Approvals Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
@@ -293,14 +339,16 @@ export default function EnhancedDashboard() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Pending Approvals</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {pendingApprovals.length} loans waiting for review
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {userRole === 'super_admin'
+                      ? 'Stage 1 & 2 approvals waiting'
+                      : 'Stage 1 approvals waiting for you'}
                   </p>
                 </div>
               </div>
               <Link
                 href="/admin/approvals"
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center gap-1"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
               >
                 View all
                 <ArrowRight className="w-4 h-4" />
@@ -308,23 +356,31 @@ export default function EnhancedDashboard() {
             </div>
 
             <div className="space-y-4">
-              {pendingApprovals.slice(0, 3).map((loan) => (
-                <div
-                  key={loan.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                >
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className={`p-2 rounded-lg ${getRiskColor(loan.customer.riskLevel)}`}>
-                      <CreditCard className="w-4 h-4" />
+              {pendingApprovals
+                .filter(loan => {
+                  if (userRole === 'super_admin') return true;
+                  if (userRole === 'admin') return loan.stage === 1;
+                  return false;
+                })
+                .slice(0, 3)
+                .map((loan) => (
+                <div key={loan.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      loan.riskLevel === 'low' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-yellow-100 dark:bg-yellow-900/20'
+                    }`}>
+                      <CreditCard className={`w-4 h-4 ${
+                        loan.riskLevel === 'low' ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'
+                      }`} />
                     </div>
-                    <div className="flex-1">
+                    <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-gray-900 dark:text-white">
+                        <p className="font-medium text-gray-900 dark:text-white">
                           {loan.customer.firstName} {loan.customer.surname}
-                        </span>
+                        </p>
                         <span className="text-xs text-gray-500 dark:text-gray-400">#{loan.loanId}</span>
                         {loan.stage === 2 && (
-                          <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
+                          <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-full text-[10px] font-medium">
                             Final Approval
                           </span>
                         )}
@@ -333,12 +389,12 @@ export default function EnhancedDashboard() {
                         {formatCurrency(loan.amount)} • {loan.purpose}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        Applied {formatDate(loan.createdAt)}
+                        Applied: {new Date(loan.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <button className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">
+                  <div className="flex items-center gap-2">
+                    <button className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
                       Approve
                     </button>
                     <button className="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
@@ -360,47 +416,125 @@ export default function EnhancedDashboard() {
             </div>
           </div>
 
-          {/* Recent Activity */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+          {/* Recently Paid Loans */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recently Paid</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {userRole === 'super_admin' 
+                      ? 'Loans marked as paid - awaiting confirmation'
+                      : 'Recent payments recorded'}
+                  </p>
+                </div>
               </div>
+              {userRole === 'super_admin' && (
+                <Link
+                  href="/admin/audit"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  View audit log
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
             </div>
 
             <div className="space-y-4">
-              {stats?.recentActivities?.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center flex-shrink-0">
-                    <UserCheck className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              {recentlyPaid.slice(0, 3).map((payment) => (
+                <div key={payment.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {payment.customer.firstName} {payment.customer.surname}
+                        </p>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">#{payment.loanId}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {formatCurrency(payment.amount)} • Received by {payment.receivedBy.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        {new Date(payment.receivedAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.action}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                      by {activity.user} • {formatDate(activity.timestamp)}
-                    </p>
-                  </div>
+                  {userRole === 'super_admin' && !payment.confirmedById && (
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded-full text-xs font-medium">
+                        Needs Confirmation
+                      </span>
+                      <button className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors">
+                        Confirm
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Right Column - Quick Actions & Stats */}
+        {/* ===== RIGHT COLUMN ===== */}
         <div className="space-y-6">
+          {/* Ready for Disbursement - SUPER ADMIN ONLY */}
+          {userRole === 'super_admin' && readyForDisbursement.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ready to Disburse</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Fully approved, waiting for release</p>
+                  </div>
+                </div>
+                <Link
+                  href="/admin/disbursements"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  Process
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              <div className="space-y-4">
+                {readyForDisbursement.slice(0, 3).map((loan) => (
+                  <div key={loan.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {loan.customer.firstName} {loan.customer.surname}
+                        </p>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">#{loan.loanId}</span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        Approved by {loan.approvedBy.name}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-600 mt-0.5">{loan.method}</p>
+                    </div>
+                    <button className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                      Disburse
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'New Customer', icon: Users, href: '/admin/customers/new', color: 'blue' },
-                { label: 'Create Loan', icon: CreditCard, href: '/admin/loans/new', color: 'green' },
-                { label: 'Review Approvals', icon: Clock, href: '/admin/approvals', color: 'yellow', badge: pendingApprovals.length },
-                { label: 'Manual Upload', icon: FileText, href: '/admin/uploads', color: 'purple' }
-              ].map((action) => {
+              {quickActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <Link
@@ -411,9 +545,9 @@ export default function EnhancedDashboard() {
                     <div className={`p-2 bg-${action.color}-100 dark:bg-${action.color}-900/20 rounded-lg mb-2 group-hover:scale-110 transition-transform`}>
                       <Icon className={`w-5 h-5 text-${action.color}-600 dark:text-${action.color}-400`} />
                     </div>
-                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center">{action.label}</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{action.label}</span>
                     {action.badge && action.badge > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
                         {action.badge}
                       </span>
                     )}
@@ -423,88 +557,28 @@ export default function EnhancedDashboard() {
             </div>
           </div>
 
-          {/* Portfolio Summary */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Portfolio Summary</h2>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Loan Performance</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {stats?.activeLoans || 0} active
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-green-600 dark:bg-green-500 h-2 rounded-full"
-                    style={{ width: `${((stats?.activeLoans || 0) / ((stats?.activeLoans || 0) + (stats?.completedLoans || 0) + (stats?.overdueLoans || 0)) * 100) || 0}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500 mt-2">
-                  <span>✅ Completed: {stats?.completedLoans || 0}</span>
-                  <span>⚠️ Overdue: {stats?.overdueLoans || 0}</span>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Disbursed vs Repaid</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {((stats?.totalRepaid || 0) / (stats?.totalDisbursed || 1) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">Disbursed</div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full" style={{ width: '100%' }} />
+          {/* Recent Activity */}
+          {stats?.recentActivities && stats.recentActivities.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
+              <div className="space-y-4">
+                {stats.recentActivities.slice(0, 3).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.action}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">by {activity.user}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 dark:text-gray-500 mb-1">Repaid</div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-green-600 dark:bg-green-500 h-2 rounded-full"
-                        style={{ width: `${((stats?.totalRepaid || 0) / (stats?.totalDisbursed || 1) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Portfolio at Risk</span>
-                  <span className={`text-sm font-medium ${
-                    (stats?.portfolioAtRisk || 0) > 10 ? 'text-red-600 dark:text-red-400' : 
-                    (stats?.portfolioAtRisk || 0) > 5 ? 'text-yellow-600 dark:text-yellow-400' : 
-                    'text-green-600 dark:text-green-400'
-                  }`}>
-                    {(stats?.portfolioAtRisk || 0).toFixed(2)}%
-                  </span>
-                </div>
+                ))}
               </div>
             </div>
-          </div>
-
-          {/* Today's Activity */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Today's Activity</h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                <span className="text-sm text-gray-600 dark:text-gray-400">New Customers</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{stats?.newCustomersToday || 0}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Payments Received</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{stats?.paymentsToday || 0}</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Loans Disbursed</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{stats?.loansDisbursedToday || 0}</span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
