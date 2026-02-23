@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -28,10 +28,6 @@ model User {
   payments     Payment[]  @relation("ReceivedByUser")
   auditLogs    AuditLog[]
   courtCases   CourtCase[] @relation("FiledByUser")
-  
-  // ADDED: Missing opposite relations for CustomerDocument
-  uploadedDocuments CustomerDocument[] @relation("DocumentUploadedBy")
-  verifiedDocuments CustomerDocument[] @relation("DocumentVerifiedBy")
 
   @@index([email])
 }
@@ -66,14 +62,17 @@ model Customer {
   creditScore    Int?     @default(650)
   riskLevel      String?  @default("medium")
   category       String?  @default("Standard")
-
+  
+  // Document tracking
   documents      CustomerDocument[]
-  documentStatus Json?
-
+  documentStatus Json?    // Track which documents are missing/uploaded
+  
+  // Court cases
   courtCases     CourtCase[]
   hasCourtCase   Boolean  @default(false)
   courtCaseNotes String?
-
+  
+  // Statistics
   totalLoans     Int      @default(0)
   activeLoans    Int      @default(0)
   overdueLoans   Int      @default(0)
@@ -95,7 +94,7 @@ model Customer {
 model CustomerDocument {
   id             String   @id @default(cuid())
   customerId     String
-  documentType   String
+  documentType   String   // national_id, passport_photo, bank_statement, salary_slip, employment_letter, mdhamini_letter, business_license, tax_clearance, court_document
   fileName       String?
   fileUrl        String?
   fileSize       Int?
@@ -103,15 +102,15 @@ model CustomerDocument {
   uploadedById   String?
   verifiedAt     DateTime?
   verifiedById   String?
-  status         String   @default("missing")
+  status         String   @default("missing") // missing, uploaded, verified, rejected
   notes          String?
   expiryDate     DateTime?
-  isCourtDocument Boolean @default(false)
-  courtCaseId    String?
+  isCourtDocument Boolean @default(false) // Mark if this is from a court case
+  courtCaseId    String?  // Link to court case if applicable
 
   customer       Customer @relation(fields: [customerId], references: [id])
-  uploadedBy     User?    @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
-  verifiedBy     User?    @relation("DocumentVerifiedBy", fields: [verifiedById], references: [id])
+  uploadedBy     User?    @relation(fields: [uploadedById], references: [id])
+  verifiedBy     User?    @relation(fields: [verifiedById], references: [id])
   courtCase      CourtCase? @relation(fields: [courtCaseId], references: [id])
 
   @@unique([customerId, documentType])
@@ -126,12 +125,12 @@ model CourtCase {
   filingDate     DateTime @default(now())
   courtName      String
   judgeName      String?
-  caseType       String
-  status         String   @default("active")
+  caseType       String   // non_payment, fraud, dispute, other
+  status         String   @default("active") // active, resolved, appealed, closed
   amountInvolved Float?
-  settlementTerms String?
+  settlementTerms String? // How they should pay (court-ordered)
   settlementAmount Float?
-  settlementSchedule String?
+  settlementSchedule String? // Monthly, weekly, etc.
   nextHearingDate DateTime?
   resolutionDate DateTime?
   notes          String?
@@ -142,9 +141,6 @@ model CourtCase {
 
   customer       Customer @relation(fields: [customerId], references: [id])
   filedBy        User     @relation("FiledByUser", fields: [filedById], references: [id])
-  
-  // ADDED: Missing opposite relation for Loan
-  loans          Loan[]   // This connects to Loan.courtCase
 
   @@index([customerId])
   @@index([status])
@@ -175,10 +171,11 @@ model Loan {
   paidById       String?
   paidAt         DateTime?
   updatedAt      DateTime @updatedAt
-
+  
+  // Court case link
   courtCaseId    String?
   isCourtOrdered Boolean  @default(false)
-  courtOrderTerms String?
+  courtOrderTerms String? // Special terms from court
 
   customer       Customer @relation(fields: [customerId], references: [id])
   createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
