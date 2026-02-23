@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || 'all';
+    const region = searchParams.get('region') || 'all';
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -57,6 +58,11 @@ export async function GET(request: Request) {
       }
     }
 
+    // Region filter
+    if (region !== 'all') {
+      where.region = region;
+    }
+
     // Get customers with counts
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
@@ -71,6 +77,8 @@ export async function GET(request: Request) {
           email: true,
           city: true,
           region: true,
+          occupation: true,
+          employer: true,
           createdAt: true,
           activeLoans: true,
           overdueLoans: true,
@@ -118,110 +126,235 @@ export async function GET(request: Request) {
 // POST /api/admin/customers - Create new customer
 export async function POST(request: Request) {
   try {
+    console.log('📝 Creating new customer...');
+    
+    // Check authentication
     const token = await getAuthCookie();
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('❌ No token found');
+      return NextResponse.json(
+        { error: 'Please login first' },
+        { status: 401 }
+      );
     }
 
     const user = verifyToken(token);
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('❌ Invalid token');
+      return NextResponse.json(
+        { error: 'Your session has expired. Please login again.' },
+        { status: 401 }
+      );
     }
 
-    const body = await request.json();
+    console.log('✅ User authenticated:', user.id, user.role);
+
+    // Parse request body
+    let body;
+    try {
+      body = await request.json();
+      console.log('📦 Request body received');
+    } catch (e) {
+      console.error('❌ Failed to parse request body:', e);
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
-    if (!body.firstName || !body.surname || !body.phoneNumber) {
+    const missingFields = [];
+    if (!body.firstName) missingFields.push('First name');
+    if (!body.surname) missingFields.push('Surname');
+    if (!body.phoneNumber) missingFields.push('Phone number');
+
+    if (missingFields.length > 0) {
       return NextResponse.json(
-        { error: 'First name, surname, and phone number are required' },
+        { error: `Missing required fields: ${missingFields.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    // Helper function to calculate age from date of birth
+    function calculateAge(dateOfBirth: Date): number {
+      const today = new Date();
+      let age = today.getFullYear() - dateOfBirth.getFullYear();
+      const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())) {
+        age--;
+      }
+      return age;
+    }
+
+    // Age validation if date of birth is provided
+    if (body.dateOfBirth) {
+      const dob = new Date(body.dateOfBirth);
+      if (isNaN(dob.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid date of birth format' },
+          { status: 400 }
+        );
+      }
+
+      const age = calculateAge(dob);
+      if (age < 18) {
+        return NextResponse.json(
+          { error: 'Customer must be at least 18 years old' },
+          { status: 400 }
+        );
+      }
+      body.age = age;
+    }
+
+    // Phone number format validation
+    const phoneRegex = /^[0-9]{10,12}$/;
+    if (!phoneRegex.test(body.phoneNumber.replace(/\D/g, ''))) {
+      return NextResponse.json(
+        { error: 'Invalid phone number format. Please use 10-12 digits.' },
         { status: 400 }
       );
     }
 
     // Check if phone number already exists
-    const existingPhone = await prisma.customer.findUnique({
-      where: { phoneNumber: body.phoneNumber }
-    });
+    try {
+      const existingPhone = await prisma.customer.findUnique({
+        where: { phoneNumber: body.phoneNumber }
+      });
 
-    if (existingPhone) {
+      if (existingPhone) {
+        return NextResponse.json(
+          { error: 'A customer with this phone number already exists' },
+          { status: 400 }
+        );
+      }
+    } catch (dbError) {
+      console.error('❌ Database error checking phone:', dbError);
       return NextResponse.json(
-        { error: 'A customer with this phone number already exists' },
-        { status: 400 }
+        { error: 'Database error - please try again' },
+        { status: 500 }
       );
     }
 
     // Check if email already exists (if provided)
     if (body.email) {
-      const existingEmail = await prisma.customer.findUnique({
-        where: { email: body.email }
-      });
-
-      if (existingEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(body.email)) {
         return NextResponse.json(
-          { error: 'A customer with this email already exists' },
+          { error: 'Invalid email format' },
           { status: 400 }
+        );
+      }
+
+      try {
+        const existingEmail = await prisma.customer.findUnique({
+          where: { email: body.email }
+        });
+
+        if (existingEmail) {
+          return NextResponse.json(
+            { error: 'A customer with this email already exists' },
+            { status: 400 }
+          );
+        }
+      } catch (dbError) {
+        console.error('❌ Database error checking email:', dbError);
+        return NextResponse.json(
+          { error: 'Database error - please try again' },
+          { status: 500 }
         );
       }
     }
 
     // Generate customer ID
     const year = new Date().getFullYear();
-    const count = await prisma.customer.count();
+    let count;
+    try {
+      count = await prisma.customer.count();
+      console.log('📊 Current customer count:', count);
+    } catch (dbError) {
+      console.error('❌ Database error getting count:', dbError);
+      return NextResponse.json(
+        { error: 'Database error - please try again' },
+        { status: 500 }
+      );
+    }
+
     const customerId = `CUST-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    console.log('🏷️ Generated customer ID:', customerId);
 
     // Create customer
-    const customer = await prisma.customer.create({
-      data: {
-        customerId,
-        firstName: body.firstName,
-        surname: body.surname,
-        middleName: body.middleName || null,
-        phoneNumber: body.phoneNumber,
-        alternativePhone: body.alternativePhone || null,
-        email: body.email || null,
-        dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
-        gender: body.gender || null,
-        address: body.address || null,
-        city: body.city || null,
-        region: body.region || null,
-        occupation: body.occupation || null,
-        employer: body.employer || null,
-        monthlyIncome: body.monthlyIncome ? parseFloat(body.monthlyIncome) : null,
-        businessName: body.businessName || null,
-        maritalStatus: body.maritalStatus || null,
-        dependents: body.dependents ? parseInt(body.dependents) : 0,
-        nationalId: body.nationalId || null,
-        bankName: body.bankName || null,
-        accountNumber: body.accountNumber || null,
-        mobileMoneyProvider: body.mobileMoneyProvider || null,
-        mobileMoneyNumber: body.mobileMoneyNumber || null,
-        createdById: user.id
-      }
-    });
+    let customer;
+    try {
+      console.log('💾 Creating customer in database...');
+      customer = await prisma.customer.create({
+        data: {
+          customerId,
+          firstName: body.firstName.trim(),
+          surname: body.surname.trim(),
+          middleName: body.middleName?.trim() || null,
+          phoneNumber: body.phoneNumber,
+          alternativePhone: body.alternativePhone || null,
+          email: body.email?.toLowerCase().trim() || null,
+          dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
+          age: body.age || null,
+          gender: body.gender || null,
+          address: body.address?.trim() || null,
+          city: body.city?.trim() || null,
+          region: body.region?.trim() || null,
+          occupation: body.occupation?.trim() || null,
+          employer: body.employer?.trim() || null,
+          monthlyIncome: body.monthlyIncome ? parseFloat(body.monthlyIncome) : null,
+          businessName: body.businessName?.trim() || null,
+          maritalStatus: body.maritalStatus || null,
+          dependents: body.dependents ? parseInt(body.dependents) : 0,
+          nationalId: body.nationalId?.trim() || null,
+          bankName: body.bankName?.trim() || null,
+          accountNumber: body.accountNumber?.trim() || null,
+          mobileMoneyProvider: body.mobileMoneyProvider || null,
+          mobileMoneyNumber: body.mobileMoneyNumber || null,
+          createdById: user.id
+        }
+      });
+      console.log('✅ Customer created successfully:', customer.id);
+    } catch (dbError) {
+      console.error('❌ Database error creating customer:', dbError);
+      return NextResponse.json(
+        { error: 'Failed to create customer. Please check all fields and try again.' },
+        { status: 500 }
+      );
+    }
 
     // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        userName: user.name || user.email,
-        userRole: user.role,
-        action: 'CREATE',
-        entityType: 'CUSTOMER',
-        entityId: customer.id,
-        details: {
-          customerId: customer.customerId,
-          name: `${customer.firstName} ${customer.surname}`,
-          phone: customer.phoneNumber
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          userName: user.name || user.email,
+          userRole: user.role,
+          action: 'CREATE',
+          entityType: 'CUSTOMER',
+          entityId: customer.id,
+          details: {
+            customerId: customer.customerId,
+            name: `${customer.firstName} ${customer.surname}`,
+            phone: customer.phoneNumber,
+            age: customer.age
+          }
         }
-      }
-    });
+      });
+      console.log('📝 Audit log created');
+    } catch (auditError) {
+      console.error('⚠️ Audit log failed:', auditError);
+      // Don't fail the request if audit log fails
+    }
 
     return NextResponse.json(customer, { status: 201 });
 
   } catch (error) {
-    console.error('Create customer error:', error);
+    console.error('❌ Unexpected error:', error);
     return NextResponse.json(
-      { error: 'Failed to create customer' },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }
