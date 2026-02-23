@@ -43,3 +43,12 @@ next-env.d.ts
 /src/generated/prisma
 
 /src/generated/prisma
+
+# Prisma config with secrets
+prisma.config.ts
+
+# Environment variables
+.env
+
+# Prisma config
+prisma.config.ts
