@@ -1,10 +1,8 @@
-import { defineConfig } from 'prisma/config'
+﻿import { defineConfig } from 'prisma/config'
 
 export default defineConfig({
-  earlyAccessFeatures: {
-    driverAdapters: true,
-  },
-  schema: {
+  schema: "./prisma/schema.prisma",
+  datasource: {
     url: process.env.DATABASE_URL,
   },
 })
