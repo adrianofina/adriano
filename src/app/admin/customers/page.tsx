@@ -7,7 +7,6 @@ import {
   Plus,
   Search,
   Filter,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
   UserPlus,
@@ -20,7 +19,13 @@ import {
   XCircle,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Download,
+  Calendar,
+  Briefcase,
+  CreditCard,
+  FileText,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -29,15 +34,25 @@ interface Customer {
   customerId: string;
   firstName: string;
   surname: string;
+  middleName?: string;
   phoneNumber: string;
   email?: string;
   city?: string;
+  region?: string;
+  occupation?: string;
+  employer?: string;
   createdAt: string;
   activeLoans: number;
   overdueLoans: number;
   completedLoans: number;
+  totalLoans: number;
   _count: {
     loans: number;
+    documents: number;
+    courtCases: number;
+  };
+  createdBy: {
+    name: string;
   };
 }
 
@@ -45,14 +60,26 @@ export default function CustomersPage() {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Pagination
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  
+  // Filters
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [regionFilter, setRegionFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
+  
+  // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+
+  // Unique regions for filter
+  const [regions, setRegions] = useState<string[]>([]);
 
   const fetchCustomers = async () => {
     try {
@@ -61,7 +88,8 @@ export default function CustomersPage() {
         page: page.toString(),
         limit: '10',
         search,
-        status: filterStatus
+        status: statusFilter,
+        region: regionFilter
       });
       
       const res = await fetch(`/api/admin/customers?${params}`);
@@ -70,17 +98,34 @@ export default function CustomersPage() {
       if (res.ok) {
         setCustomers(data.customers);
         setTotalPages(data.pagination.pages);
+        setTotalCustomers(data.pagination.total);
+        
+        // Extract unique regions for filter
+        const uniqueRegions = [...new Set(data.customers.map((c: Customer) => c.region).filter(Boolean))];
+        setRegions(uniqueRegions as string[]);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchCustomers();
-  }, [page, search, filterStatus]);
+  }, [page, search, statusFilter, regionFilter]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
+    setPage(1); // Reset to first page on new search
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchCustomers();
+  };
 
   const handleDelete = async (customer: Customer) => {
     if (user?.role !== 'super_admin') {
@@ -145,31 +190,48 @@ export default function CustomersPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Customers</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Manage and view all customer information
+            Total {totalCustomers} customers • {customers.length} shown
           </p>
         </div>
-        <Link
-          href="/admin/customers/new"
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>New Customer</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="p-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <RefreshCw className={`w-5 h-5 text-gray-600 dark:text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <Link
+            href="/admin/customers/new"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>New Customer</span>
+          </Link>
+        </div>
       </div>
 
       {/* Search and Filter Bar */}
       <div className="mb-6 space-y-3">
         <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search customers..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-base"
-            />
-          </div>
+          <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, phone, email, or ID..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-base"
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Search
+            </button>
+          </form>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`p-2.5 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
@@ -180,23 +242,49 @@ export default function CustomersPage() {
           </button>
         </div>
 
-        {/* Filter Options - Expandable on mobile */}
+        {/* Advanced Filters */}
         {showFilters && (
-          <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Filter by Status
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-base"
-            >
-              <option value="all">All Customers</option>
-              <option value="active">Active Loans</option>
-              <option value="overdue">Overdue</option>
-              <option value="completed">Completed</option>
-              <option value="new">New (No Loans)</option>
-            </select>
+          <div className="p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active Loans</option>
+                <option value="overdue">Overdue</option>
+                <option value="completed">Completed</option>
+                <option value="new">New (No Loans)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Region
+              </label>
+              <select
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="all">All Regions</option>
+                {regions.map(region => (
+                  <option key={region} value={region}>{region}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Export
+              </label>
+              <button className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <Download className="w-4 h-4" />
+                Export List
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -228,10 +316,7 @@ export default function CustomersPage() {
           {/* Mobile View: Card Layout */}
           <div className="block sm:hidden space-y-4">
             {customers.map((customer) => (
-              <div
-                key={customer.id}
-                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4"
-              >
+              <div key={customer.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
@@ -260,24 +345,35 @@ export default function CustomersPage() {
                       <span className="text-gray-600 dark:text-gray-400 truncate">{customer.email}</span>
                     </div>
                   )}
-                  {customer.city && (
+                  {(customer.city || customer.region) && (
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600 dark:text-gray-400">{customer.city}</span>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {[customer.city, customer.region].filter(Boolean).join(', ')}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {customer._count.loans} loans
-                    </span>
-                    <span className="text-xs text-gray-400 dark:text-gray-600">•</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatDate(customer.createdAt)}
-                    </span>
+                <div className="grid grid-cols-3 gap-2 mb-3 text-center text-xs">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <div className="font-medium text-gray-900 dark:text-white">{customer._count.loans}</div>
+                    <div className="text-gray-500 dark:text-gray-400">Loans</div>
                   </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <div className="font-medium text-gray-900 dark:text-white">{customer._count.documents}</div>
+                    <div className="text-gray-500 dark:text-gray-400">Docs</div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <div className="font-medium text-gray-900 dark:text-white">{customer._count.courtCases}</div>
+                    <div className="text-gray-500 dark:text-gray-400">Cases</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Added {formatDate(customer.createdAt)}
+                  </span>
                   <div className="flex items-center gap-2">
                     <Link
                       href={`/admin/customers/${customer.id}`}
@@ -315,7 +411,7 @@ export default function CustomersPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Loans</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stats</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Joined</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -345,13 +441,22 @@ export default function CustomersPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{customer.city || '—'}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {[customer.city, customer.region].filter(Boolean).join(', ') || '—'}
+                        </p>
                       </td>
                       <td className="px-6 py-4">
                         {getStatusBadge(customer)}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900 dark:text-white">{customer._count.loans}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+                            {customer._count.loans} loans
+                          </span>
+                          <span className="text-xs bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-1 rounded-full">
+                            {customer._count.documents} docs
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -363,12 +468,14 @@ export default function CustomersPage() {
                           <Link
                             href={`/admin/customers/${customer.id}`}
                             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            title="View Details"
                           >
                             <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                           </Link>
                           <Link
                             href={`/admin/customers/${customer.id}/edit`}
                             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            title="Edit Customer"
                           >
                             <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                           </Link>
@@ -376,6 +483,7 @@ export default function CustomersPage() {
                             <button
                               onClick={() => handleDelete(customer)}
                               className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              title="Delete Customer"
                             >
                               <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                             </button>
@@ -395,7 +503,7 @@ export default function CustomersPage() {
       {!loading && customers.length > 0 && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing page {page} of {totalPages}
+            Showing page {page} of {totalPages} • {totalCustomers} total customers
           </p>
           <div className="flex items-center gap-2">
             <button
