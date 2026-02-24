@@ -42,9 +42,9 @@ interface Customer {
   occupation?: string;
   employer?: string;
   createdAt: string;
-  activeLoans: number;
-  overdueLoans: number;
-  completedLoans: number;
+  activeLoans?: number;
+  overdueLoans?: number;
+  completedLoans?: number;
   totalLoans: number;
   _count: {
     loans: number;
@@ -570,3 +570,4 @@ export default function CustomersPage() {
     </div>
   );
 }
+

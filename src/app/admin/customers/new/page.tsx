@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,7 +16,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  X
+  CheckCircle
 } from 'lucide-react';
 
 export default function NewCustomerPage() {
@@ -141,9 +141,12 @@ export default function NewCustomerPage() {
         throw new Error(data.error || 'Failed to create customer');
       }
 
+      // Show success message
       setSuccess(true);
+      
+      // Redirect to customers list after 1.5 seconds
       setTimeout(() => {
-        router.push(`/admin/customers/${data.id}`);
+        router.push('/admin/customers');
         router.refresh();
       }, 1500);
 
@@ -194,9 +197,10 @@ export default function NewCustomerPage() {
 
       {/* Success Message */}
       {success && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
           <p className="text-sm text-green-800 dark:text-green-300">
-            ? Customer created successfully! Redirecting...
+            Customer created successfully! Redirecting to customers list...
           </p>
         </div>
       )}
@@ -262,7 +266,7 @@ export default function NewCustomerPage() {
                   </div>
                 </div>
 
-                {/* Date of Birth with Age Validation */}
+                {/* Date of Birth */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -283,7 +287,7 @@ export default function NewCustomerPage() {
                     )}
                     {formData.dateOfBirth && !ageError && calculateAge(formData.dateOfBirth) && (
                       <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        ? Age: {calculateAge(formData.dateOfBirth)} years
+                        ✓ Age: {calculateAge(formData.dateOfBirth)} years
                       </p>
                     )}
                   </div>
@@ -308,7 +312,7 @@ export default function NewCustomerPage() {
             )}
           </div>
 
-          {/* Contact Information (simplified for brevity) */}
+          {/* Contact Information */}
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
             <SectionHeader title="Contact Information" icon={Phone} section="contact" color="green" />
             
@@ -328,6 +332,7 @@ export default function NewCustomerPage() {
                       placeholder="255712345678"
                       className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-base"
                     />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Format: 255712345678</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
