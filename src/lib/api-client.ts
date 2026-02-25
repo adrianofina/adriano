@@ -21,8 +21,8 @@ export async function apiFetch<T>(
     // Check if response is ok
     if (!res.ok) {
       const text = await res.text()
-      console.error('API Error Response:', { status: res.status, text })
-      throw new Error(`API Error: ${res.status} - ${text.substring(0, 100)}`)
+      console.error('API Error Response:', { status: res.status, text: text.substring(0, 200) })
+      throw new Error(`HTTP Error ${res.status}: ${res.statusText}`)
     }
 
     // Try to parse JSON
