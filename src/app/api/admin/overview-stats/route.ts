@@ -23,11 +23,10 @@ export async function GET() {
       )
     }
 
-    console.log('✅ User authenticated:', user.id)
-
     // Get real stats from database
+    const totalCustomers = await db.customer.count()
+    
     const [
-      totalCustomers,
       activeLoans,
       overdueLoans,
       completedLoans,
@@ -36,7 +35,6 @@ export async function GET() {
       pendingApprovals,
       newCustomersToday
     ] = await Promise.all([
-      db.customer.count(),
       db.loan.count({ where: { status: 'active' } }),
       db.loan.count({ where: { status: 'overdue' } }),
       db.loan.count({ where: { status: 'completed' } }),
@@ -57,6 +55,16 @@ export async function GET() {
       })
     ])
 
+    // Calculate high risk customers
+    const highRiskCustomers = await db.customer.count({
+      where: { riskLevel: { in: ['high', 'critical'] } }
+    })
+
+    // Get risk distribution
+    const lowRisk = await db.customer.count({ where: { riskLevel: 'low' } })
+    const mediumRisk = await db.customer.count({ where: { riskLevel: 'medium' } })
+    const highRisk = await db.customer.count({ where: { riskLevel: 'high' } })
+
     console.log('📊 Stats:', {
       totalCustomers,
       activeLoans,
@@ -64,21 +72,6 @@ export async function GET() {
       completedLoans,
       newCustomersToday
     })
-
-    // Calculate high risk customers
-    const highRiskCustomers = await db.customer.count({
-      where: { riskLevel: { in: ['high', 'critical'] } }
-    })
-
-    // Get risk distribution
-    const riskDistribution = {
-      low: await db.customer.count({ where: { riskLevel: 'low' } }) || 0,
-      medium: await db.customer.count({ where: { riskLevel: 'medium' } }) || 0,
-      high: highRiskCustomers || 0
-    }
-
-    // Get today's new applications (placeholder for now)
-    const newApplications = Math.floor(Math.random() * 5) + 1
 
     const stats = {
       totalCustomers: totalCustomers || 0,
@@ -90,11 +83,11 @@ export async function GET() {
       pendingApprovals: pendingApprovals || 0,
       highRiskCustomers: highRiskCustomers || 0,
       newCustomersToday: newCustomersToday || 0,
-      newApplications,
+      newApplications: pendingApprovals || 0,
       riskDistribution: {
-        low: riskDistribution.low || Math.floor(totalCustomers * 0.6),
-        medium: riskDistribution.medium || Math.floor(totalCustomers * 0.3),
-        high: riskDistribution.high || Math.floor(totalCustomers * 0.1)
+        low: lowRisk || Math.floor(totalCustomers * 0.6),
+        medium: mediumRisk || Math.floor(totalCustomers * 0.3),
+        high: highRisk || Math.floor(totalCustomers * 0.1)
       },
       loanPerformance: {
         onTime: 85,
@@ -107,8 +100,6 @@ export async function GET() {
         next90Days: 120
       }
     }
-
-    console.log('✅ Returning stats:', stats)
 
     return NextResponse.json({
       success: true,

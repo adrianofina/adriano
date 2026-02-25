@@ -148,3 +148,4 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
     </div>
   );
 }
+
