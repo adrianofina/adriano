@@ -1,4 +1,4 @@
-﻿'use client';
+﻿"use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -20,22 +20,38 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Load user on mount
   useEffect(() => {
+    let mounted = true;
+
     const loadUser = async () => {
       try {
         const res = await fetch('/api/auth/me');
         const data = await res.json();
-        setUser(data.user);
+        
+        if (mounted) {
+          if (data?.user) {
+            setUser(data.user);
+          } else {
+            setUser(null);
+          }
+        }
       } catch (error) {
         console.error('Failed to load user:', error);
-        setUser(null);
+        if (mounted) {
+          setUser(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadUser();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
