@@ -1,5 +1,4 @@
-﻿// lib/api-client.ts
-export type ApiResponse<T = any> = {
+﻿export type ApiResponse<T = any> = {
   success: boolean
   data?: T
   error?: string
@@ -10,30 +9,44 @@ export async function apiFetch<T>(
   url: string, 
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(url, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    ...options
-  })
-
-  // Try to parse JSON, but handle empty responses
-  let data: ApiResponse<T>
   try {
-    data = await res.json()
-  } catch (e) {
-    throw new Error(`Invalid JSON response from ${url} (Status: ${res.status})`)
-  }
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      ...options
+    })
 
-  if (!data.success) {
-    throw new Error(data.error || `API Error: ${res.status}`)
-  }
+    // Check if response is ok
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('API Error Response:', { status: res.status, text })
+      throw new Error(`API Error: ${res.status} - ${text.substring(0, 100)}`)
+    }
 
-  return data.data as T
+    // Try to parse JSON
+    let data: ApiResponse<T>
+    try {
+      data = await res.json()
+    } catch (e) {
+      const text = await res.text()
+      console.error('Invalid JSON response:', { status: res.status, text: text.substring(0, 200) })
+      throw new Error(`Invalid JSON response from ${url}`)
+    }
+
+    if (!data.success) {
+      throw new Error(data.error || `API Error: ${res.status}`)
+    }
+
+    return data.data as T
+
+  } catch (error) {
+    console.error(`API Fetch Error (${url}):`, error)
+    throw error
+  }
 }
 
-// Convenience methods
 export const api = {
   get: <T>(url: string) => apiFetch<T>(url),
   
