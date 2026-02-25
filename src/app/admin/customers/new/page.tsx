@@ -90,7 +90,7 @@ export default function NewCustomerPage() {
     setAgeError(validateAge(dob));
   };
 
-  const toggleSection = (section: keyof typeof expandedSections) => {
+  const toggleSection = (section: "personal" | "contact" | "address" | "employment" | "banking" | "additional") => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
@@ -398,3 +398,4 @@ export default function NewCustomerPage() {
     </div>
   );
 }
+

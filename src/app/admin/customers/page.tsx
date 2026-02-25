@@ -160,13 +160,13 @@ export default function CustomersPage() {
   };
 
   const getStatusBadge = (customer: Customer) => {
-    if (customer.overdueLoans > 0) {
+    if (customer.overdueLoans ?? 0 > 0) {
       return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400"><XCircle className="w-3 h-3 mr-1" /> Overdue</span>;
     }
-    if (customer.activeLoans > 0) {
+    if (customer.activeLoans ?? 0 > 0) {
       return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" /> Active</span>;
     }
-    if (customer.completedLoans > 0) {
+    if (customer.completedLoans ?? 0 > 0) {
       return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"><CheckCircle className="w-3 h-3 mr-1" /> Completed</span>;
     }
     return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"><Clock className="w-3 h-3 mr-1" /> New</span>;
@@ -570,4 +570,5 @@ export default function CustomersPage() {
     </div>
   );
 }
+
 
