@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api-client';
+import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft,
   Save,
@@ -17,27 +19,52 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  Upload,
-  FileSignature,
-  Plus,
-  X,
   ChevronDown,
   ChevronUp,
   Landmark,
   Smartphone,
   IdCard,
+  Heart,
+  Users2,
+  Building,
   DollarSign,
+  CalendarDays,
   Percent,
-  Clock,
-  AlertTriangle
+  Wallet,
+  Receipt,
+  Scale,
+  ScrollText,
+  Stamp,
+  UploadCloud,
+  RefreshCw,
+  Info
 } from 'lucide-react';
 
-// Helper function for ordinal suffixes
-const getOrdinalSuffix = (n: number): string => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
+interface Customer {
+  id: string;
+  firstName: string;
+  surname: string;
+  middleName?: string;
+  phoneNumber: string;
+  alternativePhone?: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+  city?: string;
+  region?: string;
+  occupation?: string;
+  employer?: string;
+  monthlyIncome?: string;
+  businessName?: string;
+  maritalStatus?: string;
+  dependents?: string;
+  nationalId?: string;
+  bankName?: string;
+  accountNumber?: string;
+  mobileMoneyProvider?: string;
+  mobileMoneyNumber?: string;
+}
 
 // Helper function to calculate age
 const calculateAge = (dob: string): number | null => {
@@ -74,7 +101,7 @@ const SectionHeader = ({ title, icon: Icon, expanded, onToggle }: any) => (
 );
 
 // Input Field Component
-const InputField = ({ label, name, value, onChange, required, type = 'text', options, min, max, step }: any) => (
+const InputField = ({ label, name, value, onChange, required, type = 'text', options, min, max, step, error }: any) => (
   <div className="space-y-1">
     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
       {label} {required && <span className="text-red-500">*</span>}
@@ -101,159 +128,19 @@ const InputField = ({ label, name, value, onChange, required, type = 'text', opt
         min={min}
         max={max}
         step={step}
-        className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+        className={`w-full px-4 py-2.5 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 ${
+          error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'
+        }`}
       />
     )}
+    {error && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>}
   </div>
 );
-
-// Simple Loan Card Component
-const LoanCard = ({ loan, onView }: any) => {
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'active': return 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400';
-      case 'pending': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'completed': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'overdue': return 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  return (
-    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <p className="font-medium text-gray-900 dark:text-white">{loan.loanId}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{loan.purpose}</p>
-        </div>
-        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(loan.status)}`}>
-          {loan.status}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <div>
-          <p className="text-xs text-gray-500">Amount</p>
-          <p className="font-medium">TSh {loan.amount?.toLocaleString()}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500">Interest</p>
-          <p className="font-medium">{loan.interestRate}%</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Simple Loan Modal
-const LoanModal = ({ isOpen, onClose, onSave }: any) => {
-  const [formData, setFormData] = useState({
-    amount: '',
-    purpose: '',
-    term: '12',
-    interestRate: '12',
-    status: 'active',
-    dueDate: ''
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create New Loan</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <InputField
-            label="Loan Amount (TSh)"
-            name="amount"
-            type="number"
-            value={formData.amount}
-            onChange={(e: any) => setFormData({ ...formData, amount: e.target.value })}
-            required
-            min="1000"
-          />
-          
-          <InputField
-            label="Purpose"
-            name="purpose"
-            value={formData.purpose}
-            onChange={(e: any) => setFormData({ ...formData, purpose: e.target.value })}
-            required
-          />
-          
-          <div className="grid grid-cols-2 gap-4">
-            <InputField
-              label="Term (months)"
-              name="term"
-              type="number"
-              value={formData.term}
-              onChange={(e: any) => setFormData({ ...formData, term: e.target.value })}
-              required
-              min="1"
-            />
-            <InputField
-              label="Interest Rate (%)"
-              name="interestRate"
-              type="number"
-              step="0.1"
-              value={formData.interestRate}
-              onChange={(e: any) => setFormData({ ...formData, interestRate: e.target.value })}
-              required
-            />
-          </div>
-
-          <InputField
-            label="Status"
-            name="status"
-            type="select"
-            options={['pending', 'active', 'completed', 'overdue']}
-            value={formData.status}
-            onChange={(e: any) => setFormData({ ...formData, status: e.target.value })}
-            required
-          />
-
-          <InputField
-            label="First Due Date"
-            name="dueDate"
-            type="date"
-            value={formData.dueDate}
-            onChange={(e: any) => setFormData({ ...formData, dueDate: e.target.value })}
-          />
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-            >
-              Create Loan
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -264,14 +151,11 @@ export default function EditCustomerPage() {
     contact: false,
     address: false,
     employment: false,
-    banking: false,
-    loans: false
+    banking: false
   });
   
-  const [showLoanModal, setShowLoanModal] = useState(false);
-  const [loans, setLoans] = useState<any[]>([]);
-  
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Customer>({
+    id: '',
     firstName: '',
     surname: '',
     middleName: '',
@@ -299,42 +183,25 @@ export default function EditCustomerPage() {
   useEffect(() => {
     if (params?.id) {
       fetchCustomer();
-      fetchLoans();
     }
   }, [params?.id]);
 
   const fetchCustomer = async () => {
     try {
-      const res = await fetch(`/api/admin/customers/${params?.id}`);
-      const data = await res.json();
+      const data = await apiFetch<any>(`/api/admin/customers/${params?.id}`);
+      setFormData(data);
       
-      if (res.ok) {
-        setFormData(data);
-        
-        // Validate age
-        if (data.dateOfBirth) {
-          const age = calculateAge(data.dateOfBirth);
-          if (age && age < 18) {
-            setAgeError('Customer is under 18 years old!');
-          }
+      // Check age
+      if (data.dateOfBirth) {
+        const age = calculateAge(data.dateOfBirth);
+        if (age && age < 18) {
+          setAgeError('Customer is under 18 years old');
         }
       }
-    } catch (error) {
-      console.error('Error fetching customer:', error);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchLoans = async () => {
-    try {
-      const res = await fetch(`/api/admin/customers/${params?.id}/loans`);
-      if (res.ok) {
-        const data = await res.json();
-        setLoans(data);
-      }
-    } catch (error) {
-      console.error('Error fetching loans:', error);
     }
   };
 
@@ -380,21 +247,17 @@ export default function EditCustomerPage() {
     setError('');
 
     try {
-      const res = await fetch(`/api/admin/customers/${params?.id}`, {
+      await apiFetch(`/api/admin/customers/${params?.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
-      if (res.ok) {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push(`/admin/customers/${params?.id}`);
-        }, 1500);
-      } else {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to update customer');
-      }
+      setSuccess(true);
+      setTimeout(() => {
+        router.push(`/admin/customers/${params?.id}`);
+        router.refresh();
+      }, 1500);
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -402,47 +265,23 @@ export default function EditCustomerPage() {
     }
   };
 
-  const handleSaveLoan = async (loanData: any) => {
-    try {
-      setSaving(true);
-      console.log('Creating loan:', loanData);
-      
-      const res = await fetch(`/api/admin/customers/${params?.id}/loans`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loanData)
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create loan');
-      }
-
-      // Refresh loans list
-      await fetchLoans();
-      setShowLoanModal(false);
-      alert('✅ Loan created successfully!');
-      
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mb-6">
         <Link
           href={`/admin/customers/${params?.id}`}
           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
@@ -450,16 +289,16 @@ export default function EditCustomerPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Edit Customer</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Edit Customer</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Update customer information and manage loans
+            Update customer information
           </p>
         </div>
       </div>
 
       {/* Success Message */}
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 flex items-center gap-3">
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-3">
           <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
           <p className="text-sm text-green-800 dark:text-green-300">
             Customer updated successfully! Redirecting...
@@ -469,21 +308,24 @@ export default function EditCustomerPage() {
 
       {/* Error Message */}
       {error && !success && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
         </div>
       )}
 
       {/* Age Warning */}
-      {ageError && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-800 dark:text-red-300">{ageError}</p>
+      {ageError && !success && (
+        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl flex items-start gap-3">
+          <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Age Validation</p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">{ageError}</p>
+          </div>
         </div>
       )}
 
-      {/* Main Form */}
+      {/* Form */}
       {!success && (
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Personal Information */}
@@ -524,6 +366,7 @@ export default function EditCustomerPage() {
                     value={formData.dateOfBirth}
                     onChange={handleDateChange}
                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    error={ageError}
                   />
                   <InputField
                     label="Gender"
@@ -547,6 +390,7 @@ export default function EditCustomerPage() {
                     type="number"
                     value={formData.dependents}
                     onChange={handleChange}
+                    min="0"
                   />
                   <InputField
                     label="National ID"
@@ -604,14 +448,14 @@ export default function EditCustomerPage() {
               onToggle={() => toggleSection('address')}
             />
             {expandedSections.address && (
-              <div className="p-6">
+              <div className="p-6 space-y-4">
                 <InputField
                   label="Street Address"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <InputField
                     label="City"
                     name="city"
@@ -658,6 +502,8 @@ export default function EditCustomerPage() {
                     type="number"
                     value={formData.monthlyIncome}
                     onChange={handleChange}
+                    min="0"
+                    step="1000"
                   />
                   <InputField
                     label="Business Name"
@@ -712,81 +558,36 @@ export default function EditCustomerPage() {
             )}
           </div>
 
-          {/* Loans Section */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-            <SectionHeader
-              title="Loans"
-              icon={CreditCard}
-              expanded={expandedSections.loans}
-              onToggle={() => toggleSection('loans')}
-            />
-            {expandedSections.loans && (
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {loans.length} loan{loans.length !== 1 ? 's' : ''}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowLoanModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Loan
-                  </button>
-                </div>
-
-                {loans.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                    <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600 dark:text-gray-400">No loans yet</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4">
-                    {loans.map((loan) => (
-                      <LoanCard key={loan.id} loan={loan} onView={() => {}} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Form Actions */}
-          <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4">
-            <Link
-              href={`/admin/customers/${params?.id}`}
-              className="w-full sm:w-auto text-center px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={saving || !!ageError}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  <span>Save Changes</span>
-                </>
-              )}
-            </button>
+          <div className="sticky bottom-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4 -mx-4 sm:mx-0 sm:static sm:border-0 sm:p-0 sm:pt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
+              <Link
+                href={`/admin/customers/${params?.id}`}
+                className="w-full sm:w-auto text-center px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={saving || !!ageError}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    <span>Save Changes</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       )}
-
-      {/* Loan Modal */}
-      <LoanModal
-        isOpen={showLoanModal}
-        onClose={() => setShowLoanModal(false)}
-        onSave={handleSaveLoan}
-      />
     </div>
   );
 }
