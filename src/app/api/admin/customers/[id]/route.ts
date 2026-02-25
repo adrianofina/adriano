@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthCookie, verifyToken } from '@/lib/auth'
+import { handleApiError, successResponse, AppError } from '@/lib/error-handler'
 
 // GET /api/admin/customers/[id]
 export async function GET(
@@ -8,39 +9,27 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Log what we receive
-    console.log('🔍 API Received - params:', params)
-    console.log('🔍 API Received - id:', params?.id)
+    console.log('🔍 GET /api/admin/customers/[id] called')
     
     // Check authentication
     const token = await getAuthCookie()
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
     const user = verifyToken(token)
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
-    // IMPORTANT: In Next.js App Router, params is a Promise that resolves to an object
-    // We need to await it if it's a Promise
+    // IMPORTANT: Await params if it's a Promise
     const resolvedParams = await params
     const id = resolvedParams?.id
     
     console.log('🔍 Resolved ID:', id)
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'Customer ID is required' },
-        { status: 400 }
-      )
+      throw new AppError('Customer ID is required', 400, 'MISSING_ID')
     }
 
     const customer = await db.customer.findUnique({
@@ -51,10 +40,7 @@ export async function GET(
     })
 
     if (!customer) {
-      return NextResponse.json(
-        { success: false, error: 'Customer not found' },
-        { status: 404 }
-      )
+      throw new AppError('Customer not found', 404, 'NOT_FOUND')
     }
 
     // Get loans
@@ -73,24 +59,14 @@ export async function GET(
       loanCount: loans.length
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...customer,
-        loans,
-        stats
-      }
+    return successResponse({
+      ...customer,
+      loans,
+      stats
     })
 
   } catch (error) {
-    console.error('Error fetching customer:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error'
-      },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 
@@ -100,46 +76,32 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // IMPORTANT: Await params
-    const resolvedParams = await params
-    const id = resolvedParams?.id
+    console.log('📝 PUT /api/admin/customers/[id] called')
     
-    console.log('📝 PUT ID:', id)
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'Customer ID is required' },
-        { status: 400 }
-      )
-    }
-
     // Check authentication
     const token = await getAuthCookie()
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED')
     }
 
     const user = verifyToken(token)
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED')
+    }
+
+    const resolvedParams = await params
+    const id = resolvedParams?.id
+    
+    if (!id) {
+      throw new AppError('Customer ID is required', 400, 'MISSING_ID')
     }
 
     const body = await request.json()
-    console.log('📝 Body:', body)
 
     // Check if customer exists
     const existing = await db.customer.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Customer not found' },
-        { status: 404 }
-      )
+      throw new AppError('Customer not found', 404, 'NOT_FOUND')
     }
 
     // Update customer
@@ -184,19 +146,81 @@ export async function PUT(
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: customer
-    })
+    return successResponse(customer)
 
   } catch (error) {
-    console.error('Error updating customer:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error'
-      },
-      { status: 500 }
-    )
+    return handleApiError(error)
+  }
+}
+
+// DELETE /api/admin/customers/[id]
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    console.log('🗑️ DELETE /api/admin/customers/[id] called')
+    
+    // Check authentication
+    const token = await getAuthCookie()
+    if (!token) {
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED')
+    }
+
+    const user = verifyToken(token)
+    if (!user) {
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED')
+    }
+
+    // Only super_admin can delete
+    if (user.role !== 'super_admin') {
+      throw new AppError('Only super administrators can delete customers', 403, 'FORBIDDEN')
+    }
+
+    const resolvedParams = await params
+    const id = resolvedParams?.id
+    
+    if (!id) {
+      throw new AppError('Customer ID is required', 400, 'MISSING_ID')
+    }
+
+    // Check if customer exists
+    const customer = await db.customer.findUnique({ 
+      where: { id },
+      include: { loans: true }
+    })
+
+    if (!customer) {
+      throw new AppError('Customer not found', 404, 'NOT_FOUND')
+    }
+
+    // Check for active loans
+    if (customer.activeLoans > 0) {
+      throw new AppError('Cannot delete customer with active loans', 400, 'ACTIVE_LOANS')
+    }
+
+    // Delete customer
+    await db.customer.delete({ where: { id } })
+
+    // Create audit log
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        userName: user.name || user.email,
+        userRole: user.role,
+        action: 'DELETE',
+        entityType: 'CUSTOMER',
+        entityId: id,
+        details: { 
+          deletedCustomer: `${customer.firstName} ${customer.surname}`,
+          deletedBy: user.name
+        }
+      }
+    })
+
+    return successResponse({ message: 'Customer deleted successfully' })
+
+  } catch (error) {
+    return handleApiError(error)
   }
 }

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+
+// Import all icons from lucide-react
 import {
   ArrowLeft,
   Edit,
@@ -66,8 +68,14 @@ import {
   FolderSearch,
   FolderSync,
   FolderX,
-  Gavel
+  Gavel,
+  FileSignature
 } from 'lucide-react';
+
+import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
+import LoanModal from '@/components/modals/LoanModal';
+import PaymentModal from '@/components/modals/PaymentModal';
+import ContractModal from '@/components/modals/ContractModal';
 
 interface Customer {
   id: string;
@@ -209,6 +217,7 @@ export default function CustomerViewPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Users },
@@ -240,6 +249,10 @@ export default function CustomerViewPage() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const handleQuickAction = (action: string) => {
+    setActiveModal(action);
   };
 
   const formatCurrency = (amount?: number) => {
@@ -565,34 +578,34 @@ export default function CustomerViewPage() {
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-3">
-                <Link
-                  href={`/admin/loans/new?customerId=${customer.id}`}
+                <button
+                  onClick={() => handleQuickAction('new-loan')}
                   className="flex flex-col items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors group"
                 >
                   <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
                   <span className="text-xs font-medium text-blue-700 dark:text-blue-300">New Loan</span>
-                </Link>
-                <Link
-                  href={`/admin/documents/upload?customerId=${customer.id}`}
+                </button>
+                <button
+                  onClick={() => handleQuickAction('upload-doc')}
                   className="flex flex-col items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors group"
                 >
                   <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
                   <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Upload Doc</span>
-                </Link>
-                <Link
-                  href={`/admin/payments/new?customerId=${customer.id}`}
+                </button>
+                <button
+                  onClick={() => handleQuickAction('record-payment')}
                   className="flex flex-col items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors group"
                 >
                   <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400 mb-2 group-hover:scale-110 transition-transform" />
                   <span className="text-xs font-medium text-green-700 dark:text-green-300">Record Payment</span>
-                </Link>
-                <Link
-                  href={`/admin/customers/${customer.id}/edit`}
-                  className="flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                </button>
+                <button
+                  onClick={() => handleQuickAction('add-contract')}
+                  className="flex flex-col items-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors group"
                 >
-                  <Edit className="w-6 h-6 text-gray-600 dark:text-gray-400 mb-2 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Edit Info</span>
-                </Link>
+                  <FileSignature className="w-6 h-6 text-orange-600 dark:text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-medium text-orange-700 dark:text-orange-300">Add Contract</span>
+                </button>
               </div>
             </div>
 
@@ -664,13 +677,13 @@ export default function CustomerViewPage() {
             <div className="text-center py-12">
               <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400 mb-4">No loans yet</p>
-              <Link
-                href={`/admin/loans/new?customerId=${customer.id}`}
+              <button
+                onClick={() => handleQuickAction('new-loan')}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <CreditCard className="w-4 h-4" />
                 Create First Loan
-              </Link>
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -689,13 +702,13 @@ export default function CustomerViewPage() {
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400 mb-4">No documents uploaded yet</p>
-            <Link
-              href={`/admin/documents/upload?customerId=${customer.id}`}
+            <button
+              onClick={() => handleQuickAction('upload-doc')}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <FileText className="w-4 h-4" />
               Upload Document
-            </Link>
+            </button>
           </div>
         </div>
       )}
@@ -756,6 +769,31 @@ export default function CustomerViewPage() {
           </div>
         </div>
       )}
+
+      {/* Quick Action Modals */}
+      <DocumentUploadModal
+        isOpen={activeModal === 'upload-doc'}
+        onClose={() => setActiveModal(null)}
+        customerId={customer?.id}
+      />
+
+      <LoanModal
+        isOpen={activeModal === 'new-loan'}
+        onClose={() => setActiveModal(null)}
+        customerId={customer?.id}
+      />
+
+      <PaymentModal
+        isOpen={activeModal === 'record-payment'}
+        onClose={() => setActiveModal(null)}
+        customerId={customer?.id}
+      />
+
+      <ContractModal
+        isOpen={activeModal === 'add-contract'}
+        onClose={() => setActiveModal(null)}
+        customerId={customer?.id}
+      />
     </div>
   );
 }
