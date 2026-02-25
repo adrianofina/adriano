@@ -1,0 +1,3 @@
+@echo off
+echo Testing database connection...
+node -e "require('dotenv').config(); const { PrismaClient } = require('@prisma/client'); new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } }).$connect().then(() => console.log('? Database connected')).catch(e => console.error('?', e.message))"

@@ -1,19 +1,31 @@
-﻿// Mock database client - replace with real Prisma when ready
-export const db = {
-  async getCustomers() {
-    return { customers: [], total: 0 };
-  },
-  async getLoans() {
-    return { loans: [], total: 0 };
-  },
-  async getStats() {
-    return {
-      totalCustomers: 1247,
-      activeLoans: 342,
-      overdueLoans: 23,
-      completedLoans: 156,
-      totalDisbursed: 2840000000,
-      totalRepaid: 1380000000
-    };
+﻿import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg'
+import { PrismaPg } from '@prisma/adapter-pg'
+
+// For Node.js scripts, load env manually
+if (typeof window === 'undefined' && !process.env.DATABASE_URL) {
+  try {
+    const dotenv = require('dotenv');
+    dotenv.config();
+  } catch (e) {
+    // Ignore
   }
+}
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+// Create Prisma client with PostgreSQL adapter
+const createPrismaClient = () => {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+
+  const adapter = new PrismaPg(pool);
+  return new PrismaClient({ adapter });
 };
+
+export const db = globalForPrisma.prisma ?? createPrismaClient();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db;
