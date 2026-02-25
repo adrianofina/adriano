@@ -21,13 +21,24 @@ export function createHandler<T>(
   handler: ApiHandler<T>,
   options: HandlerOptions = {}
 ) {
-  return async (req: Request, routeParams: { params: any }) => {
+  return async (req: Request, routeParams: any) => {
     try {
-      // IMPORTANT: Next.js passes params as { params: { id: '...' } }
-      // We need to extract it properly
-      const context: HandlerContext = { 
-        params: routeParams?.params || {} 
+      // Next.js App Router passes params as the second argument directly
+      // It could be either { params: { id: '...' } } or just { id: '...' }
+      console.log('🔧 Handler received params:', routeParams)
+      
+      // Extract params correctly
+      let params = {}
+      if (routeParams?.params) {
+        // Format: { params: { id: '...' } }
+        params = routeParams.params
+      } else if (routeParams && typeof routeParams === 'object') {
+        // Format: { id: '...' } (direct)
+        params = routeParams
       }
+      
+      const context: HandlerContext = { params }
+      console.log('🔧 Context params:', context.params)
       
       // Authentication check
       if (options.requireAuth) {

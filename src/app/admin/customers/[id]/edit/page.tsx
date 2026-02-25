@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft,
@@ -137,6 +136,7 @@ const InputField = ({ label, name, value, onChange, required, type = 'text', opt
   </div>
 );
 
+// MAIN COMPONENT - MUST BE DEFAULT EXPORT
 export default function EditCustomerPage() {
   const params = useParams();
   const router = useRouter();
@@ -188,12 +188,18 @@ export default function EditCustomerPage() {
 
   const fetchCustomer = async () => {
     try {
-      const data = await apiFetch<any>(`/api/admin/customers/${params?.id}`);
-      setFormData(data);
+      const response = await fetch(`/api/admin/customers/${params?.id}`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch customer');
+      }
+      
+      setFormData(result.data);
       
       // Check age
-      if (data.dateOfBirth) {
-        const age = calculateAge(data.dateOfBirth);
+      if (result.data.dateOfBirth) {
+        const age = calculateAge(result.data.dateOfBirth);
         if (age && age < 18) {
           setAgeError('Customer is under 18 years old');
         }
@@ -247,10 +253,17 @@ export default function EditCustomerPage() {
     setError('');
 
     try {
-      await apiFetch(`/api/admin/customers/${params?.id}`, {
+      const response = await fetch(`/api/admin/customers/${params?.id}`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update customer');
+      }
 
       setSuccess(true);
       setTimeout(() => {

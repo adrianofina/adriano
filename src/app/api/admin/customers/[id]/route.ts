@@ -1,155 +1,202 @@
-﻿import { createHandler } from '@/lib/api-handler'
+﻿import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getAuthCookie, verifyToken } from '@/lib/auth'
 
 // GET /api/admin/customers/[id]
-export const GET = createHandler(async (req, context) => {
-  // context.params contains the route parameters
-  const { params } = context
-  const id = params?.id
-  
-  console.log('🔍 Fetching customer:', id)
-
-  if (!id) {
-    throw new Error('Customer ID is required')
-  }
-
-  const customer = await db.customer.findUnique({
-    where: { id },
-    include: {
-      createdBy: { select: { name: true, email: true } }
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Log what we receive
+    console.log('🔍 API Received - params:', params)
+    console.log('🔍 API Received - id:', params?.id)
+    
+    // Check authentication
+    const token = await getAuthCookie()
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
     }
-  })
 
-  if (!customer) {
-    throw new Error('Customer not found')
+    const user = verifyToken(token)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // IMPORTANT: In Next.js App Router, params is a Promise that resolves to an object
+    // We need to await it if it's a Promise
+    const resolvedParams = await params
+    const id = resolvedParams?.id
+    
+    console.log('🔍 Resolved ID:', id)
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Customer ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const customer = await db.customer.findUnique({
+      where: { id },
+      include: {
+        createdBy: { select: { name: true, email: true } }
+      }
+    })
+
+    if (!customer) {
+      return NextResponse.json(
+        { success: false, error: 'Customer not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get loans
+    const loans = await db.loan.findMany({
+      where: { customerId: id },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    // Calculate stats
+    const stats = {
+      activeLoans: loans.filter(l => l.status === 'active').length,
+      overdueLoans: loans.filter(l => l.status === 'overdue').length,
+      completedLoans: loans.filter(l => l.status === 'completed').length,
+      totalBorrowed: loans.reduce((sum, l) => sum + l.amount, 0),
+      totalRepaid: loans.reduce((sum, l) => sum + l.amountPaid, 0),
+      loanCount: loans.length
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...customer,
+        loans,
+        stats
+      }
+    })
+
+  } catch (error) {
+    console.error('Error fetching customer:', error)
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
+      { status: 500 }
+    )
   }
-
-  // Get loans
-  const loans = await db.loan.findMany({
-    where: { customerId: id },
-    orderBy: { createdAt: 'desc' }
-  })
-
-  // Calculate stats
-  const stats = {
-    activeLoans: loans.filter(l => l.status === 'active').length,
-    overdueLoans: loans.filter(l => l.status === 'overdue').length,
-    completedLoans: loans.filter(l => l.status === 'completed').length,
-    totalBorrowed: loans.reduce((sum, l) => sum + l.amount, 0),
-    totalRepaid: loans.reduce((sum, l) => sum + l.amountPaid, 0),
-    loanCount: loans.length
-  }
-
-  return {
-    ...customer,
-    loans,
-    stats
-  }
-}, { requireAuth: true })
+}
 
 // PUT /api/admin/customers/[id]
-export const PUT = createHandler(async (req, context) => {
-  const { params, user } = context
-  const id = params?.id
-  const body = await req.json()
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // IMPORTANT: Await params
+    const resolvedParams = await params
+    const id = resolvedParams?.id
+    
+    console.log('📝 PUT ID:', id)
 
-  if (!id) {
-    throw new Error('Customer ID is required')
-  }
-
-  // Check if customer exists
-  const existing = await db.customer.findUnique({ where: { id } })
-  if (!existing) {
-    throw new Error('Customer not found')
-  }
-
-  // Update customer
-  const customer = await db.customer.update({
-    where: { id },
-    data: {
-      firstName: body.firstName,
-      surname: body.surname,
-      middleName: body.middleName,
-      phoneNumber: body.phoneNumber,
-      alternativePhone: body.alternativePhone,
-      email: body.email,
-      dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
-      gender: body.gender,
-      address: body.address,
-      city: body.city,
-      region: body.region,
-      occupation: body.occupation,
-      employer: body.employer,
-      monthlyIncome: body.monthlyIncome ? parseFloat(body.monthlyIncome) : null,
-      businessName: body.businessName,
-      maritalStatus: body.maritalStatus,
-      dependents: body.dependents ? parseInt(body.dependents) : 0,
-      nationalId: body.nationalId,
-      bankName: body.bankName,
-      accountNumber: body.accountNumber,
-      mobileMoneyProvider: body.mobileMoneyProvider,
-      mobileMoneyNumber: body.mobileMoneyNumber
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Customer ID is required' },
+        { status: 400 }
+      )
     }
-  })
 
-  // Create audit log
-  await db.auditLog.create({
-    data: {
-      userId: user.id,
-      userName: user.name || user.email,
-      userRole: user.role,
-      action: 'UPDATE',
-      entityType: 'CUSTOMER',
-      entityId: customer.id,
-      details: { changes: body }
+    // Check authentication
+    const token = await getAuthCookie()
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
     }
-  })
 
-  return customer
-}, { requireAuth: true })
+    const user = verifyToken(token)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
-// DELETE /api/admin/customers/[id]
-export const DELETE = createHandler(async (req, context) => {
-  const { params, user } = context
-  const id = params?.id
+    const body = await request.json()
+    console.log('📝 Body:', body)
 
-  if (!id) {
-    throw new Error('Customer ID is required')
-  }
+    // Check if customer exists
+    const existing = await db.customer.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: 'Customer not found' },
+        { status: 404 }
+      )
+    }
 
-  // Check if customer exists
-  const customer = await db.customer.findUnique({ 
-    where: { id },
-    include: { loans: true }
-  })
-
-  if (!customer) {
-    throw new Error('Customer not found')
-  }
-
-  // Check for active loans
-  if (customer.activeLoans > 0) {
-    throw new Error('Cannot delete customer with active loans')
-  }
-
-  // Delete customer
-  await db.customer.delete({ where: { id } })
-
-  // Create audit log
-  await db.auditLog.create({
-    data: {
-      userId: user.id,
-      userName: user.name || user.email,
-      userRole: user.role,
-      action: 'DELETE',
-      entityType: 'CUSTOMER',
-      entityId: id,
-      details: { 
-        deletedCustomer: `${customer.firstName} ${customer.surname}`,
-        deletedBy: user.name
+    // Update customer
+    const customer = await db.customer.update({
+      where: { id },
+      data: {
+        firstName: body.firstName,
+        surname: body.surname,
+        middleName: body.middleName,
+        phoneNumber: body.phoneNumber,
+        alternativePhone: body.alternativePhone,
+        email: body.email,
+        dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
+        gender: body.gender,
+        address: body.address,
+        city: body.city,
+        region: body.region,
+        occupation: body.occupation,
+        employer: body.employer,
+        monthlyIncome: body.monthlyIncome ? parseFloat(body.monthlyIncome) : null,
+        businessName: body.businessName,
+        maritalStatus: body.maritalStatus,
+        dependents: body.dependents ? parseInt(body.dependents) : 0,
+        nationalId: body.nationalId,
+        bankName: body.bankName,
+        accountNumber: body.accountNumber,
+        mobileMoneyProvider: body.mobileMoneyProvider,
+        mobileMoneyNumber: body.mobileMoneyNumber
       }
-    }
-  })
+    })
 
-  return { message: 'Customer deleted successfully' }
-}, { requireAuth: true, requireRoles: ['super_admin'] })
+    // Create audit log
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        userName: user.name || user.email,
+        userRole: user.role,
+        action: 'UPDATE',
+        entityType: 'CUSTOMER',
+        entityId: customer.id,
+        details: { changes: body }
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: customer
+    })
+
+  } catch (error) {
+    console.error('Error updating customer:', error)
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
+      { status: 500 }
+    )
+  }
+}

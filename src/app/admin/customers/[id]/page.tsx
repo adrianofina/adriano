@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiFetch } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft,
@@ -227,8 +226,14 @@ export default function CustomerViewPage() {
   const fetchCustomer = async () => {
     try {
       setRefreshing(true);
-      const data = await apiFetch<any>(`/api/admin/customers/${params?.id}`);
-      setCustomer(data);
+      const response = await fetch(`/api/admin/customers/${params?.id}`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch customer');
+      }
+      
+      setCustomer(result.data);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -740,7 +745,6 @@ export default function CustomerViewPage() {
               </button>
               <button
                 onClick={() => {
-                  // Handle delete
                   setShowDeleteModal(false);
                   router.push('/admin/customers');
                 }}
