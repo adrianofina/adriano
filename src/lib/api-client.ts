@@ -26,7 +26,7 @@ export async function apiFetch<T>(
     }
 
     // Try to parse JSON
-    let data: ApiResponse<T>
+    let data: any
     try {
       data = await res.json()
     } catch (e) {
@@ -35,11 +35,18 @@ export async function apiFetch<T>(
       throw new Error(`Invalid JSON response from ${url}`)
     }
 
-    if (!data.success) {
+    // Handle different response formats
+    if (data.success === false) {
       throw new Error(data.error || `API Error: ${res.status}`)
     }
 
-    return data.data as T
+    // If data has a data property, return that
+    if (data.data !== undefined) {
+      return data.data as T
+    }
+
+    // Otherwise return the data itself
+    return data as T
 
   } catch (error) {
     console.error(`API Fetch Error (${url}):`, error)
