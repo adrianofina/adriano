@@ -1,11 +1,11 @@
 ﻿"use client";
 
 import { useState } from 'react';
-import { X, CreditCard, DollarSign, Calendar, Percent, FileText } from 'lucide-react';
+import { X, CreditCard } from 'lucide-react';
 
 interface LoanModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (refresh?: boolean) => void;
   customerId?: string;
 }
 
@@ -15,21 +15,62 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
     purpose: '',
     term: '12',
     interestRate: '12',
+    status: 'active',
     dueDate: ''
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    setTimeout(() => {
+    try {
+      console.log('📝 Creating loan for customer:', customerId);
+      console.log('📦 Loan data:', formData);
+      
+      const response = await fetch(`/api/admin/customers/${customerId}/loans`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+      console.log('📥 Response:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create loan');
+      }
+
+      // Reset form
+      setFormData({
+        amount: '',
+        purpose: '',
+        term: '12',
+        interestRate: '12',
+        status: 'active',
+        dueDate: ''
+      });
+
+      // Close modal and signal refresh
+      onClose(true);
+      
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      setError(error.message);
+    } finally {
       setLoading(false);
-      onClose();
-      alert('Loan created successfully!');
-    }, 1500);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleClose = () => {
@@ -38,9 +79,11 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
       purpose: '',
       term: '12',
       interestRate: '12',
+      status: 'active',
       dueDate: ''
     });
-    onClose();
+    setError('');
+    onClose(false);
   };
 
   return (
@@ -56,6 +99,12 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
           </button>
         </div>
 
+        {error && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -63,11 +112,13 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
             </label>
             <input
               type="number"
+              name="amount"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
               placeholder="1000000"
               required
+              min="1000"
             />
           </div>
 
@@ -77,8 +128,9 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
             </label>
             <input
               type="text"
+              name="purpose"
               value={formData.purpose}
-              onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
               placeholder="Business expansion"
               required
@@ -91,8 +143,9 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
                 Term (months)
               </label>
               <select
+                name="term"
                 value={formData.term}
-                onChange={(e) => setFormData({ ...formData, term: e.target.value })}
+                onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
               >
                 {[3,6,9,12,18,24,36].map(m => (
@@ -106,9 +159,10 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
               </label>
               <input
                 type="number"
+                name="interestRate"
                 step="0.1"
                 value={formData.interestRate}
-                onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
                 required
               />
@@ -117,12 +171,29 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Status
+            </label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+            >
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               First Due Date
             </label>
             <input
               type="date"
+              name="dueDate"
               value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
             />
           </div>
@@ -148,6 +219,3 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
     </div>
   );
 }
-
-
-
