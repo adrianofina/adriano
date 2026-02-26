@@ -9,43 +9,33 @@ export async function POST(
   try {
     const token = await getAuthCookie();
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const user = verifyToken(token);
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // Only super_admin, admin, and loan_officer can soft delete
+    // Only super_admin, admin, and loan_officer can delete
     if (!['super_admin', 'admin', 'loan_officer'].includes(user.role)) {
       return NextResponse.json(
-        { error: 'Insufficient permissions' },
+        { success: false, error: 'Forbidden' },
         { status: 403 }
       );
     }
 
-    const { reason, deletedBy } = await request.json();
+    const { reason } = await request.json();
     const customerId = params.id;
 
-    // Check if customer exists
-    const customer = await db.customer.findUnique({
-      where: { id: customerId },
-      include: {
-        loans: true,
-        documents: true
-      }
-    });
-
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'Customer not found' },
-        { status: 404 }
-      );
-    }
-
-    // Soft delete - set deletedAt and deletedBy
-    const updatedCustomer = await db.customer.update({
+    // Soft delete the customer
+    const customer = await db.customer.update({
       where: { id: customerId },
       data: {
         deletedAt: new Date(),
@@ -66,28 +56,25 @@ export async function POST(
         details: {
           customerName: `${customer.firstName} ${customer.surname}`,
           customerId: customer.customerId,
-          reason,
+          reason: reason || 'No reason provided',
           deletedBy: user.name,
-          deletedAt: new Date().toISOString(),
-          stats: {
-            loans: customer.loans.length,
-            documents: customer.documents.length
-          }
+          deletedAt: new Date().toISOString()
         }
       }
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Customer soft deleted successfully',
-      deletedBy: user.name,
-      deletedAt: new Date().toISOString()
+      message: 'Customer soft deleted successfully'
     });
 
   } catch (error) {
     console.error('Soft delete error:', error);
     return NextResponse.json(
-      { error: 'Failed to soft delete customer' },
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Internal server error'
+      },
       { status: 500 }
     );
   }

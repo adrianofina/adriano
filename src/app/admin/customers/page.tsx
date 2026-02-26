@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
-import { Users, Plus, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Users, Plus, Eye, Edit, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -19,19 +18,15 @@ interface Customer {
 }
 
 export default function CustomersPage() {
-  const { user, isLoading: authLoading } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      fetchCustomers();
-    } else if (!authLoading && !user) {
-      // Redirect to login
-      window.location.href = '/login';
-    }
-  }, [authLoading, user]);
+    fetchCustomers();
+  }, []);
 
   const fetchCustomers = async () => {
     try {
@@ -51,17 +46,35 @@ export default function CustomersPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const handleDeleteClick = (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setShowDeleteModal(true);
+  };
 
-  if (!user) {
-    return null; // Will redirect
-  }
+  const confirmDelete = async () => {
+    if (!customerToDelete) return;
+    
+    try {
+      const res = await fetch(`/api/admin/customers/${customerToDelete.id}/soft-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Deleted from list' })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setCustomers(customers.filter(c => c.id !== customerToDelete.id));
+        setShowDeleteModal(false);
+        setCustomerToDelete(null);
+      } else {
+        alert(data.error || 'Failed to delete customer');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete customer');
+    }
+  };
 
   if (loading) {
     return (
@@ -173,21 +186,50 @@ export default function CustomersPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
-                        {['super_admin', 'admin', 'loan_officer'].includes(user?.role || '') && (
-                          <button
-                            onClick={() => alert('Delete functionality coming soon')}
-                            className="p-2 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteClick(customer)}
+                          className="p-2 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && customerToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold">Delete Customer</h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete {customerToDelete.firstName} {customerToDelete.surname}?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
