@@ -18,6 +18,7 @@ model User {
   updatedAt    DateTime @updatedAt
   lastLogin    DateTime?
 
+  // Relations
   customers    Customer[] @relation("CreatedByUser")
   customerUser Customer?  @relation("CustomerUser")
   loans        Loan[]     @relation("CreatedByUser")
@@ -29,9 +30,12 @@ model User {
   auditLogs    AuditLog[]
   courtCases   CourtCase[] @relation("FiledByUser")
   
-  // ADDED: Missing opposite relations for CustomerDocument
+  // Document relations
   uploadedDocuments CustomerDocument[] @relation("DocumentUploadedBy")
   verifiedDocuments CustomerDocument[] @relation("DocumentVerifiedBy")
+  
+  // Soft delete
+  deletedCustomers Customer[] @relation("DeletedCustomer")
 
   @@index([email])
 }
@@ -83,6 +87,12 @@ model Customer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Soft delete fields
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?    @relation("DeletedCustomer", fields: [deletedById], references: [id])
+  deletionReason String?
+
   loans          Loan[]
   createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
   user           User?    @relation("CustomerUser", fields: [userId], references: [id])
@@ -90,6 +100,7 @@ model Customer {
   @@unique([firstName, surname, phoneNumber])
   @@index([customerId])
   @@index([phoneNumber])
+  @@index([deletedAt])
 }
 
 model CustomerDocument {
@@ -142,9 +153,7 @@ model CourtCase {
 
   customer       Customer @relation(fields: [customerId], references: [id])
   filedBy        User     @relation("FiledByUser", fields: [filedById], references: [id])
-  
-  // ADDED: Missing opposite relation for Loan
-  loans          Loan[]   // This connects to Loan.courtCase
+  loans          Loan[]
 
   @@index([customerId])
   @@index([status])
