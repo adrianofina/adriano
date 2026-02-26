@@ -196,7 +196,7 @@ export default function CustomerViewPage() {
           </Link>
           <h1 className="text-2xl font-bold">{customer.firstName} {customer.surname}</h1>
         </div>
-        <button onClick={fetchCustomer} className="p-2 border rounded-lg">
+        <button onClick={fetchCustomer} className="p-2 border rounded-lg" title="Refresh">
           <RefreshCw className="w-5 h-5" />
         </button>
       </div>
@@ -290,6 +290,7 @@ export default function CustomerViewPage() {
               <button
                 onClick={() => setDocumentViewMode(documentViewMode === 'grid' ? 'list' : 'grid')}
                 className="p-2 border rounded-lg hover:bg-gray-50"
+                title={documentViewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
               >
                 {documentViewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
               </button>
@@ -467,7 +468,7 @@ export default function CustomerViewPage() {
         </div>
       )}
 
-      {/* Enhanced Document Upload Modal */}
+      {/* Document Upload Modal */}
       <EnhancedDocumentUploadModal
         isOpen={showDocumentModal}
         onClose={(refresh) => {
