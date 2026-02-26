@@ -10,14 +10,28 @@ import {
   AlertCircle,
   CreditCard,
   Plus,
-  X
+  X,
+  FileText,
+  Upload,
+  Download,
+  Eye
 } from 'lucide-react';
+import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
 
 interface Loan {
   id: string;
   loanId: string;
   amount: number;
   purpose: string;
+  status: string;
+}
+
+interface Document {
+  id: string;
+  documentType: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
   status: string;
 }
 
@@ -30,8 +44,10 @@ interface Customer {
   email?: string;
   stats?: {
     loanCount: number;
+    documentCount?: number;
   };
   loans?: Loan[];
+  documents?: Document[];
 }
 
 export default function CustomerViewPage() {
@@ -42,6 +58,7 @@ export default function CustomerViewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showLoanModal, setShowLoanModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [loanError, setLoanError] = useState('');
   const [loanLoading, setLoanLoading] = useState(false);
   const [loanForm, setLoanForm] = useState({
@@ -50,6 +67,7 @@ export default function CustomerViewPage() {
     term: '12',
     interestRate: '12'
   });
+  const [activeTab, setActiveTab] = useState('loans');
 
   useEffect(() => {
     if (params?.id) {
@@ -80,9 +98,6 @@ export default function CustomerViewPage() {
     setLoanError('');
     
     try {
-      console.log('Creating loan for customer:', params?.id);
-      console.log('Loan data:', loanForm);
-      
       const response = await fetch(`/api/admin/customers/${params?.id}/loans`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,19 +105,16 @@ export default function CustomerViewPage() {
       });
 
       const result = await response.json();
-      console.log('Loan creation response:', result);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to create loan');
       }
 
-      // Success - reset and close
       setLoanForm({ amount: '', purpose: '', term: '12', interestRate: '12' });
       setShowLoanModal(false);
-      fetchCustomer(); // Refresh the page
+      fetchCustomer();
       
     } catch (err: any) {
-      console.error('Loan creation error:', err);
       setLoanError(err.message);
     } finally {
       setLoanLoading(false);
@@ -112,6 +124,24 @@ export default function CustomerViewPage() {
   const formatCurrency = (amount?: number) => {
     if (!amount) return 'TSh 0';
     return `TSh ${amount.toLocaleString()}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getDocumentTypeLabel = (type: string) => {
+    const types: Record<string, string> = {
+      national_id: 'National ID',
+      passport_photo: 'Passport Photo',
+      bank_statement: 'Bank Statement',
+      salary_slip: 'Salary Slip',
+      employment_letter: 'Employment Letter',
+      business_license: 'Business License',
+      tax_clearance: 'Tax Clearance',
+      court_document: 'Court Document'
+    };
+    return types[type] || type;
   };
 
   if (loading) {
@@ -157,48 +187,134 @@ export default function CustomerViewPage() {
         {customer.email && <p><strong>Email:</strong> {customer.email}</p>}
       </div>
 
-      {/* Loans Section */}
-      <div className="bg-white rounded-lg border p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Loans ({customer.stats?.loanCount || 0})</h2>
+      {/* Tabs */}
+      <div className="border-b mb-6">
+        <div className="flex gap-4">
           <button
-            onClick={() => {
-              setShowLoanModal(true);
-              setLoanError('');
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            onClick={() => setActiveTab('loans')}
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === 'loans' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
           >
-            <Plus className="w-4 h-4" />
-            New Loan
+            <CreditCard className="w-4 h-4" />
+            Loans ({customer.stats?.loanCount || 0})
+          </button>
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === 'documents' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'}`}
+          >
+            <FileText className="w-4 h-4" />
+            Documents ({customer.documents?.length || 0})
           </button>
         </div>
-
-        {customer.loans && customer.loans.length > 0 ? (
-          <div className="space-y-3">
-            {customer.loans.map((loan) => (
-              <div key={loan.id} className="p-4 bg-gray-50 rounded-lg border">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">{loan.loanId}</p>
-                    <p className="text-sm text-gray-600">{loan.purpose}</p>
-                  </div>
-                  <span className={`px-3 py-1 text-sm rounded ${
-                    loan.status === 'active' ? 'bg-green-100 text-green-700' :
-                    loan.status === 'overdue' ? 'bg-red-100 text-red-700' :
-                    loan.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {loan.status}
-                  </span>
-                </div>
-                <p className="text-xl font-bold mt-2">{formatCurrency(loan.amount)}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-600 py-4">No loans yet</p>
-        )}
       </div>
+
+      {/* Loans Tab */}
+      {activeTab === 'loans' && (
+        <div className="bg-white rounded-lg border p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Loans</h2>
+            <button
+              onClick={() => {
+                setShowLoanModal(true);
+                setLoanError('');
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              New Loan
+            </button>
+          </div>
+
+          {customer.loans && customer.loans.length > 0 ? (
+            <div className="space-y-3">
+              {customer.loans.map((loan) => (
+                <div key={loan.id} className="p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium">{loan.loanId}</p>
+                      <p className="text-sm text-gray-600">{loan.purpose}</p>
+                    </div>
+                    <span className={`px-3 py-1 text-sm rounded ${
+                      loan.status === 'active' ? 'bg-green-100 text-green-700' :
+                      loan.status === 'overdue' ? 'bg-red-100 text-red-700' :
+                      loan.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {loan.status}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold mt-2">{formatCurrency(loan.amount)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-600 py-4">No loans yet</p>
+          )}
+        </div>
+      )}
+
+      {/* Documents Tab */}
+      {activeTab === 'documents' && (
+        <div className="bg-white rounded-lg border p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Documents</h2>
+            <button
+              onClick={() => {
+                setShowDocumentModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Document
+            </button>
+          </div>
+
+          {customer.documents && customer.documents.length > 0 ? (
+            <div className="space-y-3">
+              {customer.documents.map((doc) => (
+                <div key={doc.id} className="p-4 bg-gray-50 rounded-lg border flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-8 h-8 text-blue-600" />
+                    <div>
+                      <p className="font-medium">{getDocumentTypeLabel(doc.documentType)}</p>
+                      <p className="text-sm text-gray-600">{doc.fileName}</p>
+                      <p className="text-xs text-gray-500">Uploaded {formatDate(doc.uploadedAt)}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 hover:bg-gray-200 rounded-lg"
+                    >
+                      <Eye className="w-5 h-5" />
+                    </a>
+                    <a
+                      href={doc.fileUrl}
+                      download
+                      className="p-2 hover:bg-gray-200 rounded-lg"
+                    >
+                      <Download className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">No documents yet</p>
+              <button
+                onClick={() => setShowDocumentModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                <Upload className="w-4 h-4" />
+                Upload your first document
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Loan Modal */}
       {showLoanModal && (
@@ -213,7 +329,7 @@ export default function CustomerViewPage() {
 
             {loanError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                <strong>Error:</strong> {loanError}
+                {loanError}
               </div>
             )}
 
@@ -284,6 +400,18 @@ export default function CustomerViewPage() {
           </div>
         </div>
       )}
+
+      {/* Document Upload Modal */}
+      <DocumentUploadModal
+        isOpen={showDocumentModal}
+        onClose={(refresh) => {
+          setShowDocumentModal(false);
+          if (refresh) {
+            fetchCustomer();
+          }
+        }}
+        customerId={customer?.id}
+      />
     </div>
   );
 }
