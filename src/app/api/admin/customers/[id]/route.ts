@@ -1,6 +1,6 @@
-﻿import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { getAuthCookie, verifyToken } from '@/lib/auth'
+﻿import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { getAuthCookie, verifyToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const pathParts = url.pathname.split('/');
     const id = pathParts[pathParts.length - 1];
     
-    console.log('Customer ID from URL:', id);
+    console.log('Looking for customer ID:', id);
 
     // Check authentication
     const token = await getAuthCookie();
@@ -30,19 +30,9 @@ export async function GET(request: Request) {
       );
     }
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: 'Customer ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Get customer with createdBy info
+    // Simple query first - just get the customer without includes
     const customer = await db.customer.findUnique({
-      where: { id },
-      include: {
-        createdBy: { select: { name: true, email: true } }
-      }
+      where: { id }
     });
 
     if (!customer) {
@@ -52,51 +42,53 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get loans
-    const loans = await db.loan.findMany({
-      where: { customerId: id },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    // Get documents
-    const documents = await db.customerDocument.findMany({
-      where: { customerId: id },
-      orderBy: { uploadedAt: 'desc' }
-    });
+    // Then get related data separately
+    const [createdBy, loans, documents] = await Promise.all([
+      customer.createdById ? db.user.findUnique({
+        where: { id: customer.createdById },
+        select: { name: true, email: true }
+      }) : null,
+      
+      db.loan.findMany({
+        where: { customerId: id },
+        orderBy: { createdAt: 'desc' }
+      }),
+      
+      db.customerDocument.findMany({
+        where: { customerId: id },
+        orderBy: { uploadedAt: 'desc' }
+      })
+    ]);
 
     // Calculate stats
-    const activeLoans = loans.filter(l => l.status === 'active').length;
-    const overdueLoans = loans.filter(l => l.status === 'overdue').length;
-    const completedLoans = loans.filter(l => l.status === 'completed').length;
-    const totalBorrowed = loans.reduce((sum, l) => sum + l.amount, 0);
-    const totalRepaid = loans.reduce((sum, l) => sum + l.amountPaid, 0);
-
     const stats = {
-      activeLoans,
-      overdueLoans,
-      completedLoans,
-      totalBorrowed,
-      totalRepaid,
+      activeLoans: loans.filter(l => l.status === 'active').length,
+      overdueLoans: loans.filter(l => l.status === 'overdue').length,
+      completedLoans: loans.filter(l => l.status === 'completed').length,
+      totalBorrowed: loans.reduce((sum, l) => sum + l.amount, 0),
+      totalRepaid: loans.reduce((sum, l) => sum + l.amountPaid, 0),
       loanCount: loans.length,
       documentCount: documents.length
     };
 
+    // Return combined data
     return NextResponse.json({
       success: true,
       data: {
         ...customer,
+        createdBy,
         loans,
         documents,
         stats
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching customer:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error'
+        error: error.message || 'Internal server error'
       },
       { status: 500 }
     );
