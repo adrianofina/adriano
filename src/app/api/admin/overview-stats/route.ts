@@ -65,14 +65,6 @@ export async function GET() {
     const mediumRisk = await db.customer.count({ where: { riskLevel: 'medium' } })
     const highRisk = await db.customer.count({ where: { riskLevel: 'high' } })
 
-    console.log('📊 Stats:', {
-      totalCustomers,
-      activeLoans,
-      overdueLoans,
-      completedLoans,
-      newCustomersToday
-    })
-
     const stats = {
       totalCustomers: totalCustomers || 0,
       activeLoans: activeLoans || 0,
@@ -101,9 +93,10 @@ export async function GET() {
       }
     }
 
+    // Return stats directly (not wrapped in data property)
     return NextResponse.json({
       success: true,
-      data: stats
+      ...stats
     })
 
   } catch (error) {
