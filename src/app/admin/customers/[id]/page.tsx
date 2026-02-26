@@ -14,9 +14,11 @@ import {
   FileText,
   Upload,
   Download,
-  Eye
+  Eye,
+  Grid,
+  List
 } from 'lucide-react';
-import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
+import EnhancedDocumentUploadModal from '@/components/modals/EnhancedDocumentUploadModal';
 
 interface Loan {
   id: string;
@@ -68,6 +70,7 @@ export default function CustomerViewPage() {
     interestRate: '12'
   });
   const [activeTab, setActiveTab] = useState('loans');
+  const [documentViewMode, setDocumentViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     if (params?.id) {
@@ -139,9 +142,27 @@ export default function CustomerViewPage() {
       employment_letter: 'Employment Letter',
       business_license: 'Business License',
       tax_clearance: 'Tax Clearance',
-      court_document: 'Court Document'
+      court_document: 'Court Document',
+      contract: 'Contract Agreement',
+      guarantor_letter: 'Guarantor Letter'
     };
     return types[type] || type;
+  };
+
+  const getDocumentColor = (type: string) => {
+    const colors: Record<string, string> = {
+      national_id: 'blue',
+      passport_photo: 'green',
+      bank_statement: 'purple',
+      salary_slip: 'orange',
+      employment_letter: 'pink',
+      business_license: 'indigo',
+      tax_clearance: 'cyan',
+      court_document: 'red',
+      contract: 'amber',
+      guarantor_letter: 'emerald'
+    };
+    return colors[type] || 'gray';
   };
 
   if (loading) {
@@ -192,14 +213,22 @@ export default function CustomerViewPage() {
         <div className="flex gap-4">
           <button
             onClick={() => setActiveTab('loans')}
-            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === 'loans' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${
+              activeTab === 'loans' 
+                ? 'border-b-2 border-blue-600 text-blue-600' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
             <CreditCard className="w-4 h-4" />
             Loans ({customer.stats?.loanCount || 0})
           </button>
           <button
             onClick={() => setActiveTab('documents')}
-            className={`px-4 py-2 font-medium flex items-center gap-2 ${activeTab === 'documents' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'}`}
+            className={`px-4 py-2 font-medium flex items-center gap-2 ${
+              activeTab === 'documents' 
+                ? 'border-b-2 border-purple-600 text-purple-600' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
             <FileText className="w-4 h-4" />
             Documents ({customer.documents?.length || 0})
@@ -257,48 +286,85 @@ export default function CustomerViewPage() {
         <div className="bg-white rounded-lg border p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Documents</h2>
-            <button
-              onClick={() => {
-                setShowDocumentModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              <Upload className="w-4 h-4" />
-              Upload Document
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDocumentViewMode(documentViewMode === 'grid' ? 'list' : 'grid')}
+                className="p-2 border rounded-lg hover:bg-gray-50"
+              >
+                {documentViewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => setShowDocumentModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Documents
+              </button>
+            </div>
           </div>
 
           {customer.documents && customer.documents.length > 0 ? (
-            <div className="space-y-3">
-              {customer.documents.map((doc) => (
-                <div key={doc.id} className="p-4 bg-gray-50 rounded-lg border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-8 h-8 text-blue-600" />
-                    <div>
-                      <p className="font-medium">{getDocumentTypeLabel(doc.documentType)}</p>
-                      <p className="text-sm text-gray-600">{doc.fileName}</p>
-                      <p className="text-xs text-gray-500">Uploaded {formatDate(doc.uploadedAt)}</p>
-                    </div>
+            <div className={documentViewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
+              {customer.documents.map((doc) => {
+                const color = getDocumentColor(doc.documentType);
+                return (
+                  <div
+                    key={doc.id}
+                    className={`p-4 border rounded-lg hover:shadow-md transition-all ${
+                      documentViewMode === 'grid' ? '' : 'flex items-center justify-between'
+                    }`}
+                  >
+                    {documentViewMode === 'grid' ? (
+                      <>
+                        <div className={`w-12 h-12 bg-${color}-100 rounded-lg flex items-center justify-center mb-3`}>
+                          <FileText className={`w-6 h-6 text-${color}-600`} />
+                        </div>
+                        <h3 className="font-medium mb-1">{getDocumentTypeLabel(doc.documentType)}</h3>
+                        <p className="text-sm text-gray-600 mb-2">{doc.fileName}</p>
+                        <p className="text-xs text-gray-500 mb-3">Uploaded {formatDate(doc.uploadedAt)}</p>
+                        <div className="flex gap-2">
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </a>
+                          <a
+                            href={doc.fileUrl}
+                            download
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 bg-${color}-100 rounded-lg flex items-center justify-center`}>
+                            <FileText className={`w-5 h-5 text-${color}-600`} />
+                          </div>
+                          <div>
+                            <p className="font-medium">{getDocumentTypeLabel(doc.documentType)}</p>
+                            <p className="text-sm text-gray-600">{doc.fileName}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <a href={doc.fileUrl} target="_blank" className="p-2 hover:bg-gray-100 rounded-lg">
+                            <Eye className="w-4 h-4" />
+                          </a>
+                          <a href={doc.fileUrl} download className="p-2 hover:bg-gray-100 rounded-lg">
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 hover:bg-gray-200 rounded-lg"
-                    >
-                      <Eye className="w-5 h-5" />
-                    </a>
-                    <a
-                      href={doc.fileUrl}
-                      download
-                      className="p-2 hover:bg-gray-200 rounded-lg"
-                    >
-                      <Download className="w-5 h-5" />
-                    </a>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -401,8 +467,8 @@ export default function CustomerViewPage() {
         </div>
       )}
 
-      {/* Document Upload Modal */}
-      <DocumentUploadModal
+      {/* Enhanced Document Upload Modal */}
+      <EnhancedDocumentUploadModal
         isOpen={showDocumentModal}
         onClose={(refresh) => {
           setShowDocumentModal(false);
