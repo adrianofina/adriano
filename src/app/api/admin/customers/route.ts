@@ -23,8 +23,11 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get all customers (no deletedAt filter since field doesn't exist yet)
+    // Get ONLY customers that are NOT deleted
     const customers = await db.customer.findMany({
+      where: {
+        deletedAt: null  // This filters out soft-deleted customers
+      },
       select: {
         id: true,
         customerId: true,
@@ -44,7 +47,7 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`✅ Found ${customers.length} customers`);
+    console.log(`✅ Found ${customers.length} active customers`);
 
     return NextResponse.json({
       success: true,

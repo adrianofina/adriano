@@ -113,8 +113,7 @@ export default function AdminLayout({
           icon: LayoutDashboard,
           description: 'Overview & stats',
           roles: ['super_admin', 'admin', 'loan_officer', 'customer_service', 'viewer']
-        },
-      ]
+        }]
     },
     {
       id: 'customers',
@@ -166,14 +165,20 @@ export default function AdminLayout({
           badge: 0,
           badgeColor: 'red'
         },
-        {
-          href: '/admin/uploads',
-          label: 'Manual Upload',
-          icon: Upload,
-          description: 'Register customers',
-          roles: ['super_admin', 'admin', 'loan_officer', 'customer_service'],
-        },
-      ]
+       {
+  href: '/admin/uploads',
+  label: 'Manual Upload',
+  icon: Upload,
+  description: 'Register customers',
+  roles: ['super_admin', 'admin', 'loan_officer', 'customer_service'],
+},
+{
+  href: '/admin/customers/deleted',
+  label: 'Deleted Customers',
+  icon: Archive,
+  description: 'View deleted customers',
+  roles: ['super_admin', 'admin']
+}]
     },
     {
       id: 'loans',
@@ -197,8 +202,7 @@ export default function AdminLayout({
           badge: pendingApprovals,
           badgeColor: 'yellow',
           highlight: pendingApprovals > 0
-        },
-      ]
+        }]
     },
     {
       id: 'reports',
@@ -225,8 +229,7 @@ export default function AdminLayout({
           icon: Settings,
           description: 'Configuration',
           roles: ['super_admin', 'admin']
-        },
-      ]
+        }]
     }
   ];
 
@@ -468,5 +471,8 @@ export default function AdminLayout({
     </div>
   );
 }
+
+
+
 
 
