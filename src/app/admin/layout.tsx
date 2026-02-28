@@ -73,7 +73,7 @@ export default function AdminLayout({
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/admin/stats');
+        const res = await fetch('/api/admin/counts');
         const data = await res.json();
         setStats({
           totalCustomers: data.totalCustomers || 0,
@@ -471,6 +471,8 @@ export default function AdminLayout({
     </div>
   );
 }
+
+
 
 
 
