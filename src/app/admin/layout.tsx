@@ -66,26 +66,34 @@ export default function AdminLayout({
     totalCustomers: 0,
     activeLoans: 0,
     overdueLoans: 0,
-    completedLoans: 0
+    completedLoans: 0,
+    deletedCustomers: 0
   });
 
   // Fetch real stats
-  useEffect(() => {
+    useEffect(() => {
     const fetchStats = async () => {
       try {
         const res = await fetch('/api/admin/counts');
-        const data = await res.json();
-        setStats({
-          totalCustomers: data.totalCustomers || 0,
-          activeLoans: data.activeLoans || 0,
-          overdueLoans: data.overdueLoans || 0,
-          completedLoans: data.completedLoans || 0
-        });
+        const result = await res.json();
+        
+        if (result.success && result.data) {
+          setStats({
+            totalCustomers: result.data.total || 0,
+            activeLoans: result.data.active || 0,
+            overdueLoans: result.data.overdue || 0,
+            completedLoans: result.data.completed || 0,
+            deletedCustomers: result.data.deleted || 0
+          });
+        }
       } catch (error) {
         console.error('Error fetching stats:', error);
       }
     };
+    
     fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -359,7 +367,7 @@ export default function AdminLayout({
                             <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
                             <span className="text-sm font-medium">{item.label}</span>
                           </div>
-                          {item.badge !== undefined && item.badge > 0 && (
+                          {item.badge !== undefined && item.badge >= 0 && (
                             <span className={`
                               px-1.5 py-0.5 text-xs rounded-full
                               ${item.highlight 
@@ -471,6 +479,18 @@ export default function AdminLayout({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
