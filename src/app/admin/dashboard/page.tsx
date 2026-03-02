@@ -21,6 +21,7 @@ import {
   BarChart3,
   RefreshCw
 } from 'lucide-react';
+
 import { usePermissions } from '@/hooks/usePermissions';
 
 interface DashboardStats {
@@ -127,7 +128,11 @@ export default function AdminDashboard() {
       ]);
 
       if (statsRes.ok) setStats(statsData);
-      if (pendingRes.ok) setPendingApprovals(pendingData);
+      if (pendingRes.ok) {
+        // Ensure pendingApprovals is always an array
+        const data = pendingData.data || pendingData;
+        setPendingApprovals(Array.isArray(data) ? data : (data.items || []));
+      }
       if (disbursementRes.ok) setReadyForDisbursement(disbursementData);
       if (paymentsRes.ok) setRecentlyPaid(paymentsData);
     } catch (error) {
@@ -160,7 +165,7 @@ export default function AdminDashboard() {
       {
         id: 1,
         title: 'Total Customers',
-        value: stats.totalCustomers.toLocaleString(),
+        value: stats.totalCustomers?.toLocaleString() || '0',
         change: stats.newCustomersToday > 0 ? `+${stats.newCustomersToday} today` : 'No new today',
         trend: stats.newCustomersToday > 0 ? 'up' : 'neutral',
         icon: Users,
@@ -170,7 +175,7 @@ export default function AdminDashboard() {
       {
         id: 2,
         title: 'Active Loans',
-        value: stats.activeLoans.toLocaleString(),
+        value: stats.activeLoans?.toLocaleString() || '0',
         change: stats.loansDisbursedToday > 0 ? `+${stats.loansDisbursedToday} today` : 'No new today',
         trend: stats.loansDisbursedToday > 0 ? 'up' : 'neutral',
         icon: CreditCard,
@@ -191,7 +196,7 @@ export default function AdminDashboard() {
         id: 4,
         title: 'Overdue Loans',
         value: stats.overdueLoans.toLocaleString(),
-        change: `${stats.portfolioAtRisk.toFixed(1)}% at risk`,
+        change: stats.portfolioAtRisk ? `${stats.portfolioAtRisk.toFixed(1)}% at risk` : '0% at risk',
         trend: stats.overdueLoans > 0 ? 'down' : 'neutral',
         icon: AlertTriangle,
         color: 'red',
@@ -584,3 +589,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
