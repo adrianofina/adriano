@@ -80,7 +80,7 @@ interface Document {
   verified: boolean;
 }
 
-// ─── Progress Ring ─────────────────────────────────────────────────────────
+// ─── Progress Ring ───
 const ProgressRing = ({
   progress,
   size = 100,
@@ -150,7 +150,7 @@ const ProgressRing = ({
   );
 };
 
-// ─── Loan Card ────────────────────────────────────────────────────────────
+// ─── Loan Card ───
 const LoanCard = ({ loan, formatCurrency }: { loan: Loan; formatCurrency: (n: number) => string }) => (
   <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700/60">
     <div className="flex items-start justify-between mb-3">
@@ -186,7 +186,7 @@ const LoanCard = ({ loan, formatCurrency }: { loan: Loan; formatCurrency: (n: nu
   </div>
 );
 
-// ─── Document Card ────────────────────────────────────────────────────────
+// ─── Document Card ───
 const DocumentCard = ({ doc }: { doc: Document }) => (
   <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60">
     <div className="flex items-center gap-3">
@@ -204,7 +204,7 @@ const DocumentCard = ({ doc }: { doc: Document }) => (
   </div>
 );
 
-// ─── Page ─────────────────────────────────────────────────────────────────
+// ─── Page ────
 export default function CustomerDetailsPage() {
   const params   = useParams();
   const router   = useRouter();
@@ -265,64 +265,55 @@ export default function CustomerDetailsPage() {
     </div>
   );
 
-  // ── Derived values (all from real data) ──────────────────────────────────
+  // ── Derived values (all from real data) ──
   const activePercentage  = customer.totalLoans > 0
     ? Math.round((customer.activeLoans / customer.totalLoans) * 100) : 0;
   const repaidPercentage  = customer.totalBorrowed > 0
     ? Math.round((customer.totalRepaid / customer.totalBorrowed) * 100) : 0;
   const hasOverdue        = customer.overdueLoans > 0;
 
-  // Risk pill colours for dark header surface
-  const riskPillDark = {
-    low:    'bg-emerald-400/15 text-emerald-300 border-emerald-400/20',
-    medium: 'bg-amber-400/15   text-amber-300   border-amber-400/20',
-    high:   'bg-red-400/15     text-red-300     border-red-400/20',
-  }[customer.riskLevel || 'medium'] ?? 'bg-gray-400/15 text-gray-300 border-gray-400/20';
+  // Risk pill colours — works on both light and dark
+  const riskPill = {
+    low:    'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-300 dark:border-emerald-400/20',
+    medium: 'bg-amber-100   text-amber-700   border-amber-200   dark:bg-amber-400/15   dark:text-amber-300   dark:border-amber-400/20',
+    high:   'bg-red-100     text-red-700     border-red-200     dark:bg-red-400/15     dark:text-red-300     dark:border-red-400/20',
+  }[customer.riskLevel || 'medium'] ?? 'bg-gray-100 text-gray-600 border-gray-200';
 
   // Score segments (visual only, no new data)
-  const scoreSegments = 5;
-  const scoreFilled   = customer.creditScore
-    ? Math.round((customer.creditScore / 1000) * scoreSegments) : 0;
-  const scoreBarColor = customer.riskLevel === 'low' ? '#10B981'
-    : customer.riskLevel === 'high' ? '#EF4444' : '#F59E0B';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
-      {/* ╔══════════════════════════════════════════════════════════════════╗
-          ║  HEADER — adapts light / dark                                    ║
-          ║  • Always slightly moody (dark-ish) band so the glass reads well  ║
-          ║  • Glassmorphism profile pill with indigo-purple-blue gradient    ║
-          ║  • ONE ring (active loans) to the right of the pill               ║
-          ╚══════════════════════════════════════════════════════════════════╝ */}
+      {/* ══════════
+         HEADER — adapts light / dark                                    ║
+         ═════════ */}
       <header className="relative overflow-hidden
-        bg-slate-900
-        dark:bg-[#0d0e12]">
+        bg-gradient-to-br from-indigo-50 via-white to-purple-50
+        dark:from-gray-900 dark:via-[#0d0e12] dark:to-gray-900">
 
-        {/* Dot grid — barely visible */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,1) 1px, transparent 1px)',
+        {/* Dot grid — light mode very faint dark dots, dark mode faint white dots */}
+        <div className="absolute inset-0 opacity-[0.035]" style={{
+          backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.6) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }} />
 
-        {/* Colour blobs — indigo & purple only, no new colours */}
+        {/* Colour blobs — indigo & purple only */}
         <div className="absolute -top-12 left-[20%] w-80 h-40 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%)' }} />
         <div className="absolute -top-8 right-[15%] w-64 h-36 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse, rgba(168,85,247,0.13) 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(ellipse, rgba(168,85,247,0.10) 0%, transparent 70%)' }} />
 
         <div className="relative max-w-7xl mx-auto px-6 pt-5 pb-8">
 
           {/* Nav row */}
           <div className="flex items-center justify-between mb-6">
             <button onClick={() => router.push('/admin/customers')}
-              className="flex items-center gap-1.5 text-white/50 hover:text-white/90 transition-colors text-sm">
+              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 dark:text-white/50 dark:hover:text-white/90 transition-colors text-sm">
               <ArrowLeft className="w-4 h-4" />
               Customers
             </button>
             <Link href={`/admin/customers/${customerId}/edit`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white/60 hover:text-white/90 transition-all text-sm"
-              style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 dark:text-white/60 dark:hover:text-white/90 transition-all text-sm border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-transparent">
               <Edit className="w-3.5 h-3.5" />
               Edit
             </Link>
@@ -331,39 +322,40 @@ export default function CustomerDetailsPage() {
           {/* Profile row */}
           <div className="flex items-center gap-5">
 
-            {/* ── Glass pill ─────────────────────────────────────────────── */}
+            {/* ── Glass pill ── */}
             <div className="flex items-center gap-4 px-5 py-4 rounded-2xl flex-1 min-w-0" style={{
-              background: 'linear-gradient(130deg, rgba(99,102,241,0.20) 0%, rgba(168,85,247,0.13) 50%, rgba(59,130,246,0.10) 100%)',
+              background: 'linear-gradient(130deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 50%, rgba(59,130,246,0.07) 100%)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 24px rgba(0,0,0,0.25)',
+              border: '1px solid rgba(99,102,241,0.15)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 12px rgba(99,102,241,0.08)',
             }}>
               {/* Avatar */}
               <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center font-bold text-white text-sm" style={{
-                background: 'linear-gradient(135deg, rgba(99,102,241,0.6) 0%, rgba(168,85,247,0.5) 100%)',
-                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.85) 0%, rgba(168,85,247,0.75) 100%)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
               }}>
                 {customer.firstName?.[0]}{customer.surname?.[0]}
               </div>
 
               {/* Name + meta */}
               <div className="min-w-0">
-                <h1 className="text-[1.05rem] font-semibold text-white leading-tight truncate">
+                <h1 className="text-[1.05rem] font-semibold text-gray-900 dark:text-white leading-tight truncate">
                   {customer.firstName} {customer.surname}
                 </h1>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <span className="text-[10.5px] text-white/35 font-mono tracking-wide">
+                  <span className="text-[10.5px] text-gray-400 dark:text-white/35 font-mono tracking-wide">
                     {customer.customerId}
                   </span>
-                  <span className="text-white/15">·</span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${riskPillDark}`}>
+                  <span className="text-gray-300 dark:text-white/15">·</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${riskPill}`}>
                     {(customer.riskLevel || 'N/A').toUpperCase()}
                   </span>
                   {hasOverdue && (
                     <>
-                      <span className="text-white/15">·</span>
-                      <span className="flex items-center gap-1 text-[11px] text-red-400">
+                      <span className="text-gray-300 dark:text-white/15">·</span>
+                      <span className="flex items-center gap-1 text-[11px] text-red-500 dark:text-red-400">
                         <AlertCircle className="w-3 h-3" />
                         {customer.overdueLoans} overdue
                       </span>
@@ -373,7 +365,7 @@ export default function CustomerDetailsPage() {
               </div>
             </div>
 
-            {/* ── Active loans ring — beside the pill ────────────────────── */}
+            {/* ── Active loans ring — beside the pill ── */}
             <div className="shrink-0 pr-1">
               <ProgressRing
                 progress={activePercentage}
@@ -382,155 +374,19 @@ export default function CustomerDetailsPage() {
                 status={hasOverdue ? 'overdue' : 'active'}
                 label="active"
                 value={`${customer.activeLoans} / ${customer.totalLoans}`}
-                onDark
+                onDark={false}
               />
             </div>
 
           </div>
         </div>
       </header>
-      {/* ╚══ /HEADER ══════════════════════════════════════════════════════╝ */}
+      {/* /HEADER*/}
 
       <main className="max-w-7xl mx-auto px-6 pt-6 pb-10 space-y-4">
 
-        {/* ┌──────────────────────────────────────────────────────────────────┐
-            │  STATS ROW — 4 compact cards, uniform, no ring here              │
-            └──────────────────────────────────────────────────────────────────┘ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Total Borrowed */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 shadow-sm">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Borrowed</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1.5 leading-none">
-              {formatCurrency(customer.totalBorrowed)}
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              {customer.totalLoans} loan{customer.totalLoans !== 1 ? 's' : ''}
-            </p>
-          </div>
-
-          {/* Monthly Income */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 shadow-sm">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Income / mo.</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1.5 leading-none">
-              {formatCurrency(customer.monthlyIncome || 0)}
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{customer.occupation || 'N/A'}</p>
-          </div>
-
-          {/* Overdue */}
-          <div className={`rounded-xl border p-4 shadow-sm ${
-            hasOverdue
-              ? 'bg-red-50 dark:bg-red-950/25 border-red-100 dark:border-red-900/30'
-              : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800'
-          }`}>
-            <p className={`text-[10px] uppercase tracking-widest ${hasOverdue ? 'text-red-400' : 'text-gray-400 dark:text-gray-500'}`}>
-              Overdue
-            </p>
-            <p className={`text-xl font-bold mt-1.5 leading-none ${hasOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-              {customer.overdueLoans}
-            </p>
-            <p className={`text-xs mt-1 ${hasOverdue ? 'text-red-400' : 'text-gray-400 dark:text-gray-500'}`}>
-              {hasOverdue ? 'Action needed' : 'All clear'}
-            </p>
-          </div>
-
-          {/* Credit Score */}
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-4 shadow-sm flex items-start justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Credit</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white mt-1.5 leading-none">
-                {customer.creditScore ?? '—'}
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 capitalize">{customer.riskLevel ?? 'N/A'} risk</p>
-            </div>
-            {/* Mini score pip bar */}
-            <div className="flex flex-col items-end gap-1 mt-0.5">
-              <div className="flex gap-[3px]">
-                {Array.from({ length: scoreSegments }).map((_, i) => (
-                  <div key={i} className="w-[5px] h-3.5 rounded-sm" style={{
-                    background: i < scoreFilled ? scoreBarColor : (undefined),
-                    backgroundColor: i < scoreFilled ? undefined : 'rgba(0,0,0,0.07)',
-                  }} />
-                ))}
-              </div>
-              <span className="text-[9px] text-gray-400 dark:text-gray-600">/1000</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ┌──────────────────────────────────────────────────────────────────┐
-            │  REPAYMENT BANNER — full-width card, horizontal layout           │
-            │  Ring on the left, breakdown text on right, progress bar below   │
-            │  This is the "other home" of the second ring                     │
-            └──────────────────────────────────────────────────────────────────┘ */}
-        <div className="relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-900/40
-          bg-white dark:bg-gray-900 shadow-sm">
-
-          {/* Subtle indigo wash — only behind this card */}
-          <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06]" style={{
-            background: 'linear-gradient(120deg, #6366f1 0%, #a855f7 100%)',
-          }} />
-
-          <div className="relative flex items-center gap-6 px-6 py-5">
-
-            {/* Ring */}
-            <div className="shrink-0">
-              <ProgressRing
-                progress={repaidPercentage}
-                size={100}
-                strokeWidth={7}
-                status={repaidPercentage >= 100 ? 'completed' : 'active'}
-                label="repaid"
-                value={`${formatCurrency(customer.totalRepaid)} paid`}
-                onDark={false}
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="w-px self-stretch bg-gray-100 dark:bg-gray-800 shrink-0" />
-
-            {/* Breakdown text — three columns */}
-            <div className="flex-1 grid grid-cols-3 gap-4 min-w-0">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Total Borrowed</p>
-                <p className="text-base font-bold text-gray-900 dark:text-white mt-1">
-                  {formatCurrency(customer.totalBorrowed)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Total Repaid</p>
-                <p className="text-base font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                  {formatCurrency(customer.totalRepaid)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Outstanding</p>
-                <p className="text-base font-bold text-gray-900 dark:text-white mt-1">
-                  {formatCurrency(Math.max(0, customer.totalBorrowed - customer.totalRepaid))}
-                </p>
-              </div>
-            </div>
-
-            {/* TrendingUp icon accent */}
-            <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-              bg-indigo-50 dark:bg-indigo-900/20">
-              <TrendingUp className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-            </div>
-          </div>
-
-          {/* Full-width progress bar at the bottom of the card */}
-          <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
-            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-r-full"
-              style={{
-                width: `${repaidPercentage}%`,
-                transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)',
-              }} />
-          </div>
-        </div>
-
-        {/* ┌──────────────────────────────────────────────────────────────────┐
-            │  CONTACT STRIP — 3 compact chips                                 │
-            └──────────────────────────────────────────────────────────────────┘ */}
+        {/* CONTACT STRIP — 3 compact chips                                 │
+             */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
             { icon: <Phone className="w-3.5 h-3.5 text-indigo-500" />, label: 'Phone',   value: customer.phoneNumber },
@@ -551,9 +407,60 @@ export default function CustomerDetailsPage() {
           ))}
         </div>
 
-        {/* ┌──────────────────────────────────────────────────────────────────┐
-            │  TABS PANEL                                                      │
-            └──────────────────────────────────────────────────────────────────┘ */}
+        {/* REPAYMENT BANNER — ring + breakdown + progress bar              │
+             */}
+        <div className="relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-white dark:bg-gray-900 shadow-sm">
+          {/* Subtle indigo wash */}
+          <div className="absolute inset-0 opacity-[0.025] dark:opacity-[0.05]" style={{
+            background: 'linear-gradient(120deg, #6366f1 0%, #a855f7 100%)',
+          }} />
+          <div className="relative flex items-center gap-6 px-6 py-5">
+            {/* Ring */}
+            <div className="shrink-0">
+              <ProgressRing
+                progress={repaidPercentage}
+                size={100}
+                strokeWidth={7}
+                status={repaidPercentage >= 100 ? 'completed' : 'active'}
+                label="repaid"
+                value={`${formatCurrency(customer.totalRepaid)} paid`}
+                onDark={false}
+              />
+            </div>
+            {/* Divider */}
+            <div className="w-px self-stretch bg-gray-100 dark:bg-gray-800 shrink-0" />
+            {/* Three breakdown columns */}
+            <div className="flex-1 grid grid-cols-3 gap-4 min-w-0">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Total Borrowed</p>
+                <p className="text-base font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(customer.totalBorrowed)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Total Repaid</p>
+                <p className="text-base font-bold text-indigo-600 dark:text-indigo-400 mt-1">{formatCurrency(customer.totalRepaid)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Outstanding</p>
+                <p className="text-base font-bold text-gray-900 dark:text-white mt-1">
+                  {formatCurrency(Math.max(0, customer.totalBorrowed - customer.totalRepaid))}
+                </p>
+              </div>
+            </div>
+            {/* Icon accent */}
+            <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20">
+              <TrendingUp className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+            </div>
+          </div>
+          {/* Bottom progress bar */}
+          <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
+            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-r-full"
+              style={{ width: `${repaidPercentage}%`, transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
+          </div>
+        </div>
+
+        {/* ────────────────
+              TABS PANEL                                                      │
+            ──────────────── */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
 
           {/* Tab headers */}
@@ -673,7 +580,7 @@ export default function CustomerDetailsPage() {
   );
 }
 
-// ─── Tiny helper: labelled field cell ────────────────────────────────────────
+// ─── labelled field cell ────
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-3.5 py-3">
