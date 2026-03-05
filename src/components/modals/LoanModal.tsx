@@ -15,8 +15,8 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
     purpose: '',
     term: '12',
     interestRate: '12',
-    status: 'active',
-    dueDate: ''
+    status: 'pending', // Changed default to 'pending' instead of 'active'
+    nextPaymentDate: '' // Changed from dueDate to nextPaymentDate
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,7 +35,13 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
       const response = await fetch(`/api/admin/customers/${customerId}/loans`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          amount: parseFloat(formData.amount),
+          term: parseInt(formData.term),
+          interestRate: parseFloat(formData.interestRate),
+          nextPaymentDate: formData.nextPaymentDate ? new Date(formData.nextPaymentDate) : null
+        })
       });
 
       const result = await response.json();
@@ -51,8 +57,8 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
         purpose: '',
         term: '12',
         interestRate: '12',
-        status: 'active',
-        dueDate: ''
+        status: 'pending',
+        nextPaymentDate: ''
       });
 
       // Close modal and signal refresh
@@ -79,8 +85,8 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
       purpose: '',
       term: '12',
       interestRate: '12',
-      status: 'active',
-      dueDate: ''
+      status: 'pending',
+      nextPaymentDate: ''
     });
     setError('');
     onClose(false);
@@ -179,8 +185,8 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
             >
-              <option value="active">Active</option>
               <option value="pending">Pending</option>
+              <option value="active">Active</option>
               <option value="completed">Completed</option>
             </select>
           </div>
@@ -191,8 +197,8 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
             </label>
             <input
               type="date"
-              name="dueDate"
-              value={formData.dueDate}
+              name="nextPaymentDate" // Changed from dueDate to nextPaymentDate
+              value={formData.nextPaymentDate}
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
             />

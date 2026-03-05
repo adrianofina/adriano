@@ -19,7 +19,11 @@ import {
   Building,
   AlertCircle,
   TrendingUp,
+  Plus,
+  X
 } from 'lucide-react';
+import LoanModal from '@/components/modals/LoanModal';
+import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
 
 interface Customer {
   id: string;
@@ -213,29 +217,32 @@ export default function CustomerDetailsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeTab, setActiveTab] = useState('details');
   const [loading,   setLoading]   = useState(true);
+  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
 
   const customerId = params.id as string;
 
+  const fetchData = async () => {
+    try {
+      const [cRes, lRes, dRes] = await Promise.all([
+        fetch(`/api/admin/customers/${customerId}`),
+        fetch(`/api/admin/customers/${customerId}/loans`),
+        fetch(`/api/admin/customers/${customerId}/documents`),
+      ]);
+      const cData = await cRes.json();
+      const lData = await lRes.json();
+      const dData = await dRes.json();
+      setCustomer(cData.data || cData);
+      setLoans(lData.data || []);
+      setDocuments(dData.data || []);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [cRes, lRes, dRes] = await Promise.all([
-          fetch(`/api/admin/customers/${customerId}`),
-          fetch(`/api/admin/customers/${customerId}/loans`),
-          fetch(`/api/admin/customers/${customerId}/documents`),
-        ]);
-        const cData = await cRes.json();
-        const lData = await lRes.json();
-        const dData = await dRes.json();
-        setCustomer(cData.data || cData);
-        setLoans(lData.data || []);
-        setDocuments(dData.data || []);
-      } catch (err) {
-        console.error('Error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     if (customerId) fetchData();
   }, [customerId]);
 
@@ -279,13 +286,11 @@ export default function CustomerDetailsPage() {
     high:   'bg-red-100     text-red-700     border-red-200     dark:bg-red-400/15     dark:text-red-300     dark:border-red-400/20',
   }[customer.riskLevel || 'medium'] ?? 'bg-gray-100 text-gray-600 border-gray-200';
 
-  // Score segments (visual only, no new data)
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ══════════
-         HEADER — adapts light / dark                                    ║
+         HEADER — adapts light / dark                                    
          ═════════ */}
       <header className="relative overflow-hidden
         bg-gradient-to-br from-indigo-50 via-white to-purple-50
@@ -385,8 +390,7 @@ export default function CustomerDetailsPage() {
 
       <main className="max-w-7xl mx-auto px-6 pt-6 pb-10 space-y-4">
 
-        {/* CONTACT STRIP — 3 compact chips                                 │
-             */}
+        {/* CONTACT STRIP — 3 compact chips */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
             { icon: <Phone className="w-3.5 h-3.5 text-indigo-500" />, label: 'Phone',   value: customer.phoneNumber },
@@ -407,8 +411,7 @@ export default function CustomerDetailsPage() {
           ))}
         </div>
 
-        {/* REPAYMENT BANNER — ring + breakdown + progress bar              │
-             */}
+        {/* REPAYMENT BANNER — ring + breakdown + progress bar */}
         <div className="relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-white dark:bg-gray-900 shadow-sm">
           {/* Subtle indigo wash */}
           <div className="absolute inset-0 opacity-[0.025] dark:opacity-[0.05]" style={{
@@ -459,7 +462,7 @@ export default function CustomerDetailsPage() {
         </div>
 
         {/* ────────────────
-              TABS PANEL                                                      │
+              TABS PANEL
             ──────────────── */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
 
@@ -541,14 +544,43 @@ export default function CustomerDetailsPage() {
             {/* ── Loans ── */}
             {activeTab === 'loans' && (
               <div className="space-y-3">
+                <div className="flex justify-end mb-1">
+                  <button
+                    onClick={() => setShowLoanModal(true)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    New Loan
+                  </button>
+                </div>
                 {loans.length === 0 ? (
                   <div className="text-center py-12">
                     <CreditCard className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
                     <p className="text-sm text-gray-400 dark:text-gray-500">No loans yet</p>
+                    <button
+                      onClick={() => setShowLoanModal(true)}
+                      className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create First Loan
+                    </button>
                   </div>
-                ) : loans.map(loan => (
-                  <LoanCard key={loan.id} loan={loan} formatCurrency={formatCurrency} />
-                ))}
+                ) : (
+                  <>
+                    {loans.map(loan => (
+                      <LoanCard key={loan.id} loan={loan} formatCurrency={formatCurrency} />
+                    ))}
+                    <div className="flex justify-center mt-4">
+                      <button
+                        onClick={() => setShowLoanModal(true)}
+                        className="px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Another Loan
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -556,19 +588,42 @@ export default function CustomerDetailsPage() {
             {activeTab === 'documents' && (
               <div className="space-y-3">
                 <div className="flex justify-end mb-1">
-                  <button className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors">
+                  <button
+                    onClick={() => setShowDocumentModal(true)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  >
                     <Upload className="w-3.5 h-3.5" />
-                    Upload
+                    Upload Document
                   </button>
                 </div>
                 {documents.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
                     <p className="text-sm text-gray-400 dark:text-gray-500">No documents yet</p>
+                    <button
+                      onClick={() => setShowDocumentModal(true)}
+                      className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload First Document
+                    </button>
                   </div>
-                ) : documents.map(doc => (
-                  <DocumentCard key={doc.id} doc={doc} />
-                ))}
+                ) : (
+                  <>
+                    {documents.map(doc => (
+                      <DocumentCard key={doc.id} doc={doc} />
+                    ))}
+                    <div className="flex justify-center mt-4">
+                      <button
+                        onClick={() => setShowDocumentModal(true)}
+                        className="px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload Another Document
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -576,6 +631,30 @@ export default function CustomerDetailsPage() {
         </div>
 
       </main>
+
+      {/* Loan Modal */}
+      {showLoanModal && customer && (
+        <LoanModal
+          isOpen={showLoanModal}
+          onClose={() => {
+            setShowLoanModal(false);
+            fetchData(); // Refresh loans after modal closes
+          }}
+          customerId={customer.id}
+        />
+      )}
+
+      {/* Document Modal */}
+      {showDocumentModal && customer && (
+        <DocumentUploadModal
+          isOpen={showDocumentModal}
+          onClose={() => {
+            setShowDocumentModal(false);
+            fetchData(); // Refresh documents after modal closes
+          }}
+          customerId={customer.id}
+        />
+      )}
     </div>
   );
 }
