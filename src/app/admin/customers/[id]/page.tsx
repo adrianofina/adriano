@@ -20,7 +20,9 @@ import {
   AlertCircle,
   TrendingUp,
   Plus,
-  X
+  X,
+  Eye,
+  Download
 } from 'lucide-react';
 import LoanModal from '@/components/modals/LoanModal';
 import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
@@ -79,7 +81,10 @@ interface Document {
   id: string;
   name: string;
   type: string;
-  size: number;
+  size?: number;
+  fileSize?: number;
+  documentSize?: number;
+  fileUrl?: string;
   uploadedAt: string;
   verified: boolean;
 }
@@ -112,7 +117,7 @@ const ProgressRing = ({
     clamped >= 100 ? '#10B981'
     : status === 'overdue' ? '#EF4444'
     : isEmpty ? (onDark ? '#374151' : '#D1D5DB')
-    : '#818CF8'; // indigo-400 — our palette
+    : '#818CF8';
 
   const trackColor = onDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
   const textColor  = isEmpty
@@ -124,10 +129,8 @@ const ProgressRing = ({
     <div className="flex flex-col items-center gap-1">
       <div className="relative" style={{ width: size, height: size }}>
         <svg className="w-full h-full -rotate-90" style={{ display: 'block' }}>
-          {/* Track */}
           <circle cx={size / 2} cy={size / 2} r={radius}
             fill="none" stroke={trackColor} strokeWidth={strokeWidth} />
-          {/* Arc */}
           <circle cx={size / 2} cy={size / 2} r={radius}
             fill="none" stroke={ringColor} strokeWidth={strokeWidth}
             strokeDasharray={circumference}
@@ -139,7 +142,6 @@ const ProgressRing = ({
             }}
           />
         </svg>
-        {/* Centre label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span style={{ fontSize: size <= 86 ? '0.95rem' : '1.15rem', fontWeight: 700, color: textColor, lineHeight: 1 }}>
             {clamped}%
@@ -191,22 +193,68 @@ const LoanCard = ({ loan, formatCurrency }: { loan: Loan; formatCurrency: (n: nu
 );
 
 // ─── Document Card ───
-const DocumentCard = ({ doc }: { doc: Document }) => (
-  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60">
-    <div className="flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
-        <FileText className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+const DocumentCard = ({ doc }: { doc: Document }) => {
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes || bytes === 0) return 'Unknown size';
+    
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return parseFloat((bytes / Math.pow(1024, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const fileSize = doc.size || doc.fileSize || doc.documentSize || 0;
+  const fileUrl = doc.fileUrl || '#';
+
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/60">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center shrink-0">
+          <FileText className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{doc.name}</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            {doc.type || 'Document'} • {formatFileSize(fileSize)}
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-medium text-gray-900 dark:text-white">{doc.name}</p>
-        <p className="text-xs text-gray-400 dark:text-gray-500">{doc.type} · {(doc.size / 1024).toFixed(0)} KB</p>
+      <div className="flex items-center gap-2 ml-2 shrink-0">
+        {doc.verified ? (
+          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium flex items-center gap-1" title="Verified">
+            <CheckCircle className="w-3 h-3" />
+            Verified
+          </span>
+        ) : (
+          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg text-xs font-medium flex items-center gap-1" title="Pending verification">
+            <Clock className="w-3 h-3" />
+            Pending
+          </span>
+        )}
+        {fileUrl !== '#' && (
+          <>
+            <a 
+              href={fileUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="View document"
+            >
+              <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            </a>
+            <a 
+              href={fileUrl} 
+              download 
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Download document"
+            >
+              <Download className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            </a>
+          </>
+        )}
       </div>
     </div>
-    {doc.verified
-      ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-      : <Clock className="w-4 h-4 text-amber-400 shrink-0" />}
-  </div>
-);
+  );
+};
 
 // ─── Page ────
 export default function CustomerDetailsPage() {
@@ -272,14 +320,12 @@ export default function CustomerDetailsPage() {
     </div>
   );
 
-  // ── Derived values (all from real data) ──
   const activePercentage  = customer.totalLoans > 0
     ? Math.round((customer.activeLoans / customer.totalLoans) * 100) : 0;
   const repaidPercentage  = customer.totalBorrowed > 0
     ? Math.round((customer.totalRepaid / customer.totalBorrowed) * 100) : 0;
   const hasOverdue        = customer.overdueLoans > 0;
 
-  // Risk pill colours — works on both light and dark
   const riskPill = {
     low:    'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-400/15 dark:text-emerald-300 dark:border-emerald-400/20',
     medium: 'bg-amber-100   text-amber-700   border-amber-200   dark:bg-amber-400/15   dark:text-amber-300   dark:border-amber-400/20',
@@ -289,20 +335,16 @@ export default function CustomerDetailsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
-      {/* ══════════
-         HEADER — adapts light / dark                                    
-         ═════════ */}
+      {/* Header */}
       <header className="relative overflow-hidden
         bg-gradient-to-br from-indigo-50 via-white to-purple-50
         dark:from-gray-900 dark:via-[#0d0e12] dark:to-gray-900">
 
-        {/* Dot grid — light mode very faint dark dots, dark mode faint white dots */}
         <div className="absolute inset-0 opacity-[0.035]" style={{
           backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.6) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }} />
 
-        {/* Colour blobs — indigo & purple only */}
         <div className="absolute -top-12 left-[20%] w-80 h-40 rounded-full pointer-events-none"
           style={{ background: 'radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%)' }} />
         <div className="absolute -top-8 right-[15%] w-64 h-36 rounded-full pointer-events-none"
@@ -310,7 +352,6 @@ export default function CustomerDetailsPage() {
 
         <div className="relative max-w-7xl mx-auto px-6 pt-5 pb-8">
 
-          {/* Nav row */}
           <div className="flex items-center justify-between mb-6">
             <button onClick={() => router.push('/admin/customers')}
               className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 dark:text-white/50 dark:hover:text-white/90 transition-colors text-sm">
@@ -324,10 +365,8 @@ export default function CustomerDetailsPage() {
             </Link>
           </div>
 
-          {/* Profile row */}
           <div className="flex items-center gap-5">
 
-            {/* ── Glass pill ── */}
             <div className="flex items-center gap-4 px-5 py-4 rounded-2xl flex-1 min-w-0" style={{
               background: 'linear-gradient(130deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 50%, rgba(59,130,246,0.07) 100%)',
               backdropFilter: 'blur(16px)',
@@ -335,7 +374,6 @@ export default function CustomerDetailsPage() {
               border: '1px solid rgba(99,102,241,0.15)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 12px rgba(99,102,241,0.08)',
             }}>
-              {/* Avatar */}
               <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center font-bold text-white text-sm" style={{
                 background: 'linear-gradient(135deg, rgba(99,102,241,0.85) 0%, rgba(168,85,247,0.75) 100%)',
                 border: '1px solid rgba(255,255,255,0.3)',
@@ -344,7 +382,6 @@ export default function CustomerDetailsPage() {
                 {customer.firstName?.[0]}{customer.surname?.[0]}
               </div>
 
-              {/* Name + meta */}
               <div className="min-w-0">
                 <h1 className="text-[1.05rem] font-semibold text-gray-900 dark:text-white leading-tight truncate">
                   {customer.firstName} {customer.surname}
@@ -370,7 +407,6 @@ export default function CustomerDetailsPage() {
               </div>
             </div>
 
-            {/* ── Active loans ring — beside the pill ── */}
             <div className="shrink-0 pr-1">
               <ProgressRing
                 progress={activePercentage}
@@ -386,11 +422,10 @@ export default function CustomerDetailsPage() {
           </div>
         </div>
       </header>
-      {/* /HEADER*/}
 
       <main className="max-w-7xl mx-auto px-6 pt-6 pb-10 space-y-4">
 
-        {/* CONTACT STRIP — 3 compact chips */}
+        {/* Contact Strip */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {[
             { icon: <Phone className="w-3.5 h-3.5 text-indigo-500" />, label: 'Phone',   value: customer.phoneNumber },
@@ -411,14 +446,12 @@ export default function CustomerDetailsPage() {
           ))}
         </div>
 
-        {/* REPAYMENT BANNER — ring + breakdown + progress bar */}
+        {/* Repayment Banner */}
         <div className="relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-white dark:bg-gray-900 shadow-sm">
-          {/* Subtle indigo wash */}
           <div className="absolute inset-0 opacity-[0.025] dark:opacity-[0.05]" style={{
             background: 'linear-gradient(120deg, #6366f1 0%, #a855f7 100%)',
           }} />
           <div className="relative flex items-center gap-6 px-6 py-5">
-            {/* Ring */}
             <div className="shrink-0">
               <ProgressRing
                 progress={repaidPercentage}
@@ -430,9 +463,7 @@ export default function CustomerDetailsPage() {
                 onDark={false}
               />
             </div>
-            {/* Divider */}
             <div className="w-px self-stretch bg-gray-100 dark:bg-gray-800 shrink-0" />
-            {/* Three breakdown columns */}
             <div className="flex-1 grid grid-cols-3 gap-4 min-w-0">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Total Borrowed</p>
@@ -449,24 +480,19 @@ export default function CustomerDetailsPage() {
                 </p>
               </div>
             </div>
-            {/* Icon accent */}
             <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/20">
               <TrendingUp className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
             </div>
           </div>
-          {/* Bottom progress bar */}
           <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
             <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-r-full"
               style={{ width: `${repaidPercentage}%`, transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
           </div>
         </div>
 
-        {/* ────────────────
-              TABS PANEL
-            ──────────────── */}
+        {/* Tabs */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
 
-          {/* Tab headers */}
           <div className="flex gap-0 border-b border-gray-100 dark:border-gray-800 px-6">
             {[
               { key: 'details',   label: 'Personal Details' },
@@ -486,11 +512,10 @@ export default function CustomerDetailsPage() {
 
           <div className="p-6">
 
-            {/* ── Personal Details ── */}
+            {/* Personal Details */}
             {activeTab === 'details' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-                {/* Personal info */}
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
@@ -513,7 +538,6 @@ export default function CustomerDetailsPage() {
                   </div>
                 </div>
 
-                {/* Employment + Banking */}
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
@@ -541,7 +565,7 @@ export default function CustomerDetailsPage() {
               </div>
             )}
 
-            {/* ── Loans ── */}
+            {/* Loans Tab */}
             {activeTab === 'loans' && (
               <div className="space-y-3">
                 <div className="flex justify-end mb-1">
@@ -584,7 +608,7 @@ export default function CustomerDetailsPage() {
               </div>
             )}
 
-            {/* ── Documents ── */}
+            {/* Documents Tab */}
             {activeTab === 'documents' && (
               <div className="space-y-3">
                 <div className="flex justify-end mb-1">
@@ -636,9 +660,11 @@ export default function CustomerDetailsPage() {
       {showLoanModal && customer && (
         <LoanModal
           isOpen={showLoanModal}
-          onClose={() => {
+          onClose={(refresh) => {
             setShowLoanModal(false);
-            fetchData(); // Refresh loans after modal closes
+            if (refresh) {
+              fetchData();
+            }
           }}
           customerId={customer.id}
         />
@@ -648,9 +674,11 @@ export default function CustomerDetailsPage() {
       {showDocumentModal && customer && (
         <DocumentUploadModal
           isOpen={showDocumentModal}
-          onClose={() => {
+          onClose={(refresh) => {
             setShowDocumentModal(false);
-            fetchData(); // Refresh documents after modal closes
+            if (refresh) {
+              fetchData();
+            }
           }}
           customerId={customer.id}
         />
@@ -659,7 +687,7 @@ export default function CustomerDetailsPage() {
   );
 }
 
-// ─── labelled field cell ────
+// Field component
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-3.5 py-3">
