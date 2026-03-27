@@ -34,7 +34,6 @@ model User {
 
   @@index([email])
 }
-
 model CustomerDocument {
   id             String   @id @default(cuid())
   customerId     String
@@ -51,6 +50,11 @@ model CustomerDocument {
   expiryDate     DateTime?
   isCourtDocument Boolean @default(false)
   courtCaseId    String?
+  
+  // Soft delete fields
+  deletedAt      DateTime?
+  deletedById    String?
+  deletionReason String?
 
   customer       Customer @relation(fields: [customerId], references: [id])
   uploadedBy     User?    @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
@@ -60,6 +64,7 @@ model CustomerDocument {
   @@unique([customerId, documentType])
   @@index([customerId])
   @@index([status])
+  @@index([deletedAt])  // for soft delete queries
 }
 
 model CourtCase {

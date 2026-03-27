@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -28,73 +28,17 @@ model User {
   payments     Payment[]  @relation("ReceivedByUser")
   auditLogs    AuditLog[]
   courtCases   CourtCase[] @relation("FiledByUser")
+  deletedCustomers Customer[] @relation("DeletedCustomer")
+  uploadedDocuments CustomerDocument[] @relation("DocumentUploadedBy")
+  verifiedDocuments CustomerDocument[] @relation("DocumentVerifiedBy")
 
   @@index([email])
-}
-
-model Customer {
-  id             String   @id @default(cuid())
-  customerId     String   @unique
-  userId         String?  @unique
-  firstName      String
-  surname        String
-  middleName     String?
-  phoneNumber    String   @unique
-  alternativePhone String?
-  email          String?  @unique
-  dateOfBirth    DateTime?
-  age            Int?
-  gender         String?
-  address        String?
-  city           String?
-  region         String?
-  occupation     String?
-  employer       String?
-  monthlyIncome  Float?
-  businessName   String?
-  maritalStatus  String?
-  dependents     Int?     @default(0)
-  nationalId     String?  @unique
-  bankName       String?
-  accountNumber  String?
-  mobileMoneyProvider String?
-  mobileMoneyNumber String?
-  creditScore    Int?     @default(650)
-  riskLevel      String?  @default("medium")
-  category       String?  @default("Standard")
-  
-  // Document tracking
-  documents      CustomerDocument[]
-  documentStatus Json?    // Track which documents are missing/uploaded
-  
-  // Court cases
-  courtCases     CourtCase[]
-  hasCourtCase   Boolean  @default(false)
-  courtCaseNotes String?
-  
-  // Statistics
-  totalLoans     Int      @default(0)
-  activeLoans    Int      @default(0)
-  overdueLoans   Int      @default(0)
-  totalBorrowed  Float    @default(0)
-  totalRepaid    Float    @default(0)
-  createdById    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  loans          Loan[]
-  createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
-  user           User?    @relation("CustomerUser", fields: [userId], references: [id])
-
-  @@unique([firstName, surname, phoneNumber])
-  @@index([customerId])
-  @@index([phoneNumber])
 }
 
 model CustomerDocument {
   id             String   @id @default(cuid())
   customerId     String
-  documentType   String   // national_id, passport_photo, bank_statement, salary_slip, employment_letter, mdhamini_letter, business_license, tax_clearance, court_document
+  documentType   String
   fileName       String?
   fileUrl        String?
   fileSize       Int?
@@ -102,15 +46,15 @@ model CustomerDocument {
   uploadedById   String?
   verifiedAt     DateTime?
   verifiedById   String?
-  status         String   @default("missing") // missing, uploaded, verified, rejected
+  status         String   @default("missing")
   notes          String?
   expiryDate     DateTime?
-  isCourtDocument Boolean @default(false) // Mark if this is from a court case
-  courtCaseId    String?  // Link to court case if applicable
+  isCourtDocument Boolean @default(false)
+  courtCaseId    String?
 
   customer       Customer @relation(fields: [customerId], references: [id])
-  uploadedBy     User?    @relation(fields: [uploadedById], references: [id])
-  verifiedBy     User?    @relation(fields: [verifiedById], references: [id])
+  uploadedBy     User?    @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  verifiedBy     User?    @relation("DocumentVerifiedBy", fields: [verifiedById], references: [id])
   courtCase      CourtCase? @relation(fields: [courtCaseId], references: [id])
 
   @@unique([customerId, documentType])
@@ -125,12 +69,12 @@ model CourtCase {
   filingDate     DateTime @default(now())
   courtName      String
   judgeName      String?
-  caseType       String   // non_payment, fraud, dispute, other
-  status         String   @default("active") // active, resolved, appealed, closed
+  caseType       String
+  status         String   @default("active")
   amountInvolved Float?
-  settlementTerms String? // How they should pay (court-ordered)
+  settlementTerms String?
   settlementAmount Float?
-  settlementSchedule String? // Monthly, weekly, etc.
+  settlementSchedule String?
   nextHearingDate DateTime?
   resolutionDate DateTime?
   notes          String?
@@ -141,6 +85,7 @@ model CourtCase {
 
   customer       Customer @relation(fields: [customerId], references: [id])
   filedBy        User     @relation("FiledByUser", fields: [filedById], references: [id])
+  loans          Loan[]
 
   @@index([customerId])
   @@index([status])
@@ -171,11 +116,10 @@ model Loan {
   paidById       String?
   paidAt         DateTime?
   updatedAt      DateTime @updatedAt
-  
-  // Court case link
+
   courtCaseId    String?
   isCourtOrdered Boolean  @default(false)
-  courtOrderTerms String? // Special terms from court
+  courtOrderTerms String?
 
   customer       Customer @relation(fields: [customerId], references: [id])
   createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
@@ -226,4 +170,66 @@ model AuditLog {
 
   @@index([timestamp])
   @@index([userId])
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  userId         String?  @unique
+  firstName      String
+  surname        String
+  middleName     String?
+  phoneNumber    String   @unique
+  alternativePhone String?
+  email          String?  @unique
+  dateOfBirth    DateTime?
+  age            Int?
+  gender         String?
+  address        String?
+  city           String?
+  region         String?
+  occupation     String?
+  employer       String?
+  monthlyIncome  Float?
+  businessName   String?
+  maritalStatus  String?
+  dependents     Int?     @default(0)
+  nationalId     String?  @unique
+  bankName       String?
+  accountNumber  String?
+  mobileMoneyProvider String?
+  mobileMoneyNumber String?
+  creditScore    Int?     @default(650)
+  riskLevel      String?  @default("medium")
+  category       String?  @default("Standard")
+
+  documents      CustomerDocument[]
+  documentStatus Json?
+
+  courtCases     CourtCase[]
+  hasCourtCase   Boolean  @default(false)
+  courtCaseNotes String?
+
+  totalLoans     Int      @default(0)
+  activeLoans    Int      @default(0)
+  overdueLoans   Int      @default(0)
+  totalBorrowed  Float    @default(0)
+  totalRepaid    Float    @default(0)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?    @relation("DeletedCustomer", fields: [deletedById], references: [id])
+  deletionReason String?
+
+  loans          Loan[]
+  createdBy      User     @relation("CreatedByUser", fields: [createdById], references: [id])
+  user           User?    @relation("CustomerUser", fields: [userId], references: [id])
+
+  @@unique([firstName, surname, phoneNumber])
+  @@index([customerId])
+  @@index([phoneNumber])
+  @@index([deletedAt])
 }
