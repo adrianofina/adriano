@@ -15,8 +15,8 @@ export default function LoanModal({ isOpen, onClose, customerId }: LoanModalProp
     purpose: '',
     term: '12',
     interestRate: '12',
-    status: 'pending', // Changed default to 'pending' instead of 'active'
-    nextPaymentDate: '' // Changed from dueDate to nextPaymentDate
+    status: 'pending', 
+    nextPaymentDate: '' 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
