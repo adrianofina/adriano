@@ -23,9 +23,11 @@ import {
   X,
   Eye,
   Download,
+  DollarSign,
   Trash2
 } from 'lucide-react';
 import LoanModal from '@/components/modals/LoanModal';
+import PaymentModal from '@/components/modals/PaymentModal';
 import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
 
 interface Customer {
@@ -158,42 +160,78 @@ const ProgressRing = ({
     </div>
   );
 };
-
 // ─── Loan Card ───
-const LoanCard = ({ loan, formatCurrency }: { loan: Loan; formatCurrency: (n: number) => string }) => (
-  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700/60">
-    <div className="flex items-start justify-between mb-3">
-      <div>
-        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{loan.purpose}</p>
+const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; formatCurrency: (n: number) => string; onRecordPayment: (loan: Loan) => void }) => {
+  const [showProgressRing, setShowProgressRing] = useState(false);
+  
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700/60">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-3">
+          {/* Small progress ring */}
+          <div 
+            className="cursor-pointer group relative"
+            onMouseEnter={() => setShowProgressRing(true)}
+            onMouseLeave={() => setShowProgressRing(false)}
+          >
+            <ProgressRing
+              progress={loan.progress}
+              size={48}
+              strokeWidth={4}
+              color={loan.status === 'active' ? '#10B981' : '#EF4444'}
+              interactive={true}
+              onClick={() => {}}
+            />
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{loan.purpose}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`px-2.5 py-0.5 text-[11px] font-medium rounded-full ${
+            loan.status === 'active'  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+            : loan.status === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+          }`}>{loan.status}</span>
+          {loan.status === 'active' && (
+            <button
+              onClick={() => onRecordPayment(loan)}
+              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
+            >
+              <DollarSign className="w-3 h-3" />
+              Pay
+            </button>
+          )}
+        </div>
       </div>
-      <span className={`px-2.5 py-0.5 text-[11px] font-medium rounded-full ${
-        loan.status === 'active'  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-        : loan.status === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-      }`}>{loan.status}</span>
+      <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+        <div>
+          <p className="text-gray-500 dark:text-gray-400">Amount</p>
+          <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500 dark:text-gray-400">Paid</p>
+          <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(loan.amountPaid || 0)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500 dark:text-gray-400">Remaining</p>
+          <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance || loan.amount)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500 dark:text-gray-400">Progress</p>
+          <p className="font-semibold text-indigo-600 dark:text-indigo-400">{loan.progress}%</p>
+        </div>
+      </div>
+      {loan.dueDate && (
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+          Due {new Date(loan.dueDate).toLocaleDateString()}
+        </p>
+      )}
     </div>
-    <div className="flex justify-between text-xs mb-2">
-      <span className="text-gray-500 dark:text-gray-400">Amount</span>
-      <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</span>
-    </div>
-    <div className="flex justify-between text-xs mb-1.5">
-      <span className="text-gray-500 dark:text-gray-400">Repayment</span>
-      <span className="font-semibold text-gray-900 dark:text-white">{loan.progress}%</span>
-    </div>
-    <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-      <div className="h-full bg-indigo-500 rounded-full" style={{
-        width: `${Math.min(100, loan.progress)}%`,
-        transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)',
-      }} />
-    </div>
-    {loan.dueDate && (
-      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
-        Due {new Date(loan.dueDate).toLocaleDateString()}
-      </p>
-    )}
-  </div>
-);
+  );
+};
+
 // ─── Document Card Component (with delete button) ───
 const DocumentCard = ({ doc, customerId, onDelete }: { doc: Document; customerId: string; onDelete: (id: string) => void }) => {
   const [isDeleting, setIsDeleting] = useState(false); 
@@ -332,6 +370,8 @@ export default function CustomerDetailsPage() {
   const [loading,   setLoading]   = useState(true);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
 
   const customerId = params.id as string;
 
@@ -630,48 +670,56 @@ export default function CustomerDetailsPage() {
               </div>
             )}
 
-            {/* Loans Tab */}
-            {activeTab === 'loans' && (
-              <div className="space-y-3">
-                <div className="flex justify-end mb-1">
-                  <button
-                    onClick={() => setShowLoanModal(true)}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    New Loan
-                  </button>
-                </div>
-                {loans.length === 0 ? (
-                  <div className="text-center py-12">
-                    <CreditCard className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
-                    <p className="text-sm text-gray-400 dark:text-gray-500">No loans yet</p>
-                    <button
-                      onClick={() => setShowLoanModal(true)}
-                      className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Create First Loan
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {loans.map(loan => (
-                      <LoanCard key={loan.id} loan={loan} formatCurrency={formatCurrency} />
-                    ))}
-                    <div className="flex justify-center mt-4">
-                      <button
-                        onClick={() => setShowLoanModal(true)}
-                        className="px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add Another Loan
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+          {/* Loans Tab */}
+{activeTab === 'loans' && (
+  <div className="space-y-3">
+    <div className="flex justify-end mb-1">
+      <button
+        onClick={() => setShowLoanModal(true)}
+        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        New Loan
+      </button>
+    </div>
+    {loans.length === 0 ? (
+      <div className="text-center py-12">
+        <CreditCard className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+        <p className="text-sm text-gray-400 dark:text-gray-500">No loans yet</p>
+        <button
+          onClick={() => setShowLoanModal(true)}
+          className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Create First Loan
+        </button>
+      </div>
+    ) : (
+      <>
+        {loans.map(loan => (
+          <LoanCard 
+            key={loan.id} 
+            loan={loan} 
+            formatCurrency={formatCurrency}
+            onRecordPayment={(loan) => {
+              setSelectedLoan(loan);
+              setShowPaymentModal(true);
+            }}
+          />
+        ))}
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => setShowLoanModal(true)}
+            className="px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Another Loan
+          </button>
+        </div>
+      </>
+    )}
+  </div>
+)}
 
            {/* ── Documents Tab ── */}
 {activeTab === 'documents' && (
@@ -755,6 +803,23 @@ export default function CustomerDetailsPage() {
           customerId={customer.id}
         />
       )}
+
+      {showPaymentModal && selectedLoan && (
+  <PaymentModal
+    isOpen={showPaymentModal}
+    onClose={(refresh) => {
+      setShowPaymentModal(false);
+      if (refresh) {
+        fetchData(); // Refresh loans after payment
+      }
+    }}
+    loanId={selectedLoan.id}
+    loanAmount={selectedLoan.amount}
+    remainingBalance={selectedLoan.remainingBalance || selectedLoan.amount}
+    customerName={`${customer?.firstName} ${customer?.surname}`}
+    loanIdNumber={selectedLoan.loanId}
+  />
+)}
     </div>
   );
 }
