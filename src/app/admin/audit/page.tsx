@@ -45,7 +45,7 @@ export default function Page() {
       </div>
       
       <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-        {Audit Logs}
+        Audit Logs
       </h1>
       
       <p className="text-xl text-gray-600 dark:text-gray-400 mb-8 max-w-2xl">
