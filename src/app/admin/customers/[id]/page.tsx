@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -30,6 +29,8 @@ import LoanModal from '@/components/modals/LoanModal';
 import PaymentModal from '@/components/modals/PaymentModal';
 import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
 import ProgressRing from '@/components/ui/ProgressRing';
+import * as React from 'react';
+const { useState, useEffect, useRef } = React;
 
 
 interface Customer {
@@ -95,6 +96,396 @@ interface Document {
   verified: boolean;
 }
 
+// =======================
+// ─── RING COMPONENTS ───
+
+// Animation constants
+const WOBBLE_DURATION = 300;
+const WOBBLE_CYCLES = 2;
+const GLOW_FADE_DURATION = 200;
+const REPAYMENT_HOLD_MS = 150;
+const REPAYMENT_FILL_DURATION = 1200;
+const REPAYMENT_EASING = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+const REPAYMENT_ABORT_DURATION = 200;
+
+// ─── LoanHealthRing ─── (Ring 1)
+interface LoanHealthRingProps {
+  customer: Customer;
+  size?: number;
+  strokeWidth?: number;
+  interactive?: boolean;
+  onDark?: boolean;
+}
+
+const LoanHealthRing = ({ 
+  customer, 
+  size = 90, 
+  strokeWidth = 6, 
+  interactive = true,
+  onDark = true 
+}: LoanHealthRingProps) => {
+  const [isHovering, setIsHovering] = useState(false);
+  const [glowIntensity, setGlowIntensity] = useState(0.4);
+  
+  const computeLoanHealth = (c: Customer): number => {
+    const repaymentRatio = c.totalBorrowed > 0 ? c.totalRepaid / c.totalBorrowed : 0;
+    const repaymentScore = repaymentRatio * 40;
+    
+    const overdueRatio = c.totalLoans > 0 ? c.overdueLoans / c.totalLoans : 0;
+    const overdueScore = (1 - overdueRatio) * 35;
+    
+    const activeRatio = c.totalLoans > 0 ? c.activeLoans / c.totalLoans : 0;
+    const activeScore = (1 - Math.min(activeRatio, 1)) * 25;
+    
+    return Math.round(repaymentScore + overdueScore + activeScore);
+  };
+  
+  const healthScore = computeLoanHealth(customer);
+  const clamped = Math.min(100, Math.max(0, healthScore));
+  
+  const getColor = () => {
+    if (clamped >= 80) return '#10B981';
+    if (clamped >= 50) return '#F59E0B';
+    return '#EF4444';
+  };
+  
+  const ringColor = getColor();
+  
+  useEffect(() => {
+    if (clamped < 50 && !isHovering) {
+      const interval = setInterval(() => {
+        setGlowIntensity(prev => prev === 0.4 ? 0.9 : 0.4);
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [clamped, isHovering]);
+  
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference - (circumference * clamped / 100);
+  
+  const [wobbleOffset, setWobbleOffset] = useState(0);
+  const wobbleRef = useRef<number | null>(null);
+  
+  const handleWobble = () => {
+    if (!interactive) return;
+    
+    const amplitude = circumference * 0.03;
+    let cycle = 0;
+    let startTime: number;
+    
+    const animateWobble = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const cycleDuration = WOBBLE_DURATION / WOBBLE_CYCLES;
+      const progress = Math.min(1, elapsed / cycleDuration);
+      
+      if (cycle < WOBBLE_CYCLES) {
+        const angle = progress * Math.PI * 2;
+        const offset = amplitude * Math.sin(angle);
+        setWobbleOffset(offset);
+        
+        if (progress >= 1) {
+          cycle++;
+          startTime = timestamp;
+        }
+        wobbleRef.current = requestAnimationFrame(animateWobble);
+      } else {
+        setWobbleOffset(0);
+        wobbleRef.current = null;
+      }
+    };
+    
+    if (wobbleRef.current) cancelAnimationFrame(wobbleRef.current);
+    wobbleRef.current = requestAnimationFrame(animateWobble);
+  };
+  
+  const handleMouseEnter = () => {
+    if (!interactive) return;
+    setIsHovering(true);
+    setGlowIntensity(1.0);
+    handleWobble();
+  };
+  
+  const handleMouseLeave = () => {
+    if (!interactive) return;
+    setIsHovering(false);
+    setGlowIntensity(0.4);
+    if (wobbleRef.current) {
+      cancelAnimationFrame(wobbleRef.current);
+      setWobbleOffset(0);
+    }
+  };
+  
+  const currentDashOffset = dashOffset + (isHovering ? wobbleOffset : 0);
+  
+  const getTextColor = () => {
+    if (clamped < 50) return '#EF4444';
+    if (clamped >= 80) return '#10B981';
+    if (onDark) return '#FFFFFF';
+    return '#111827';
+  };
+  
+  return (
+    <div 
+      className="relative group cursor-pointer"
+      style={{ width: size, height: size }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseEnter}
+      onTouchEnd={handleMouseLeave}
+    >
+      <svg className="w-full h-full -rotate-90" style={{ display: 'block' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(0,0,0,0.06)"
+          strokeWidth={strokeWidth}
+          className="dark:stroke-gray-700"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={currentDashOffset}
+          strokeLinecap="round"
+          style={{
+            filter: `drop-shadow(0 0 ${glowIntensity * 8}px ${ringColor}${Math.floor(glowIntensity * 100)})`,
+            transition: isHovering ? 'none' : `filter ${GLOW_FADE_DURATION}ms ease-out`
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span 
+          className="font-bold"
+          style={{ 
+            fontSize: size <= 86 ? '0.9rem' : '1.1rem',
+            color: getTextColor()
+          }}
+        >
+          {clamped}%
+        </span>
+        <span className="text-[9px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+          HEALTH
+        </span>
+        <span className="text-[8px] text-gray-500 dark:text-gray-600 mt-0.5">
+          {healthScore}/100
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ─── RepaymentRing ─── (Ring 2 - Light Banner)
+interface RepaymentRingProps {
+  customer: Customer;
+  formatCurrency: (n: number) => string;
+  size?: number;
+  strokeWidth?: number;
+  interactive?: boolean;
+}
+
+const RepaymentRing = ({ 
+  customer, 
+  formatCurrency, 
+  size = 100, 
+  strokeWidth = 7, 
+  interactive = true 
+}: RepaymentRingProps) => {
+  const [isHovering, setIsHovering] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
+  
+  const actualProgress = customer.totalBorrowed > 0 
+    ? Math.round((customer.totalRepaid / customer.totalBorrowed) * 100) 
+    : 0;
+  
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  
+  const ringColor = actualProgress >= 100 ? '#10B981' : '#818CF8';
+  
+ const animationRef = useRef<number | null>(null);
+ const frameRef = useRef<number | null>(null);
+  
+  const startAnimation = () => {
+    setIsAnimating(true);
+    setDisplayProgress(0);
+    setDisplayCount(0);
+    
+    setTimeout(() => {
+      const startTime = performance.now();
+      const targetProgress = actualProgress;
+      
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / REPAYMENT_FILL_DURATION);
+        const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
+        const currentProgress = targetProgress * easeOut(t);
+        setDisplayProgress(currentProgress);
+        setDisplayCount(Math.floor(currentProgress));
+        
+        if (t < 1) {
+          frameRef.current = requestAnimationFrame(animate);
+        } else {
+          setDisplayProgress(targetProgress);
+          setDisplayCount(targetProgress);
+          setIsAnimating(false);
+        }
+      };
+      
+      frameRef.current = requestAnimationFrame(animate);
+    }, REPAYMENT_HOLD_MS);
+  };
+  
+  const abortAnimation = () => {
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    if (animationRef.current) clearTimeout(animationRef.current);
+    setDisplayProgress(actualProgress);
+    setDisplayCount(actualProgress);
+    setIsAnimating(false);
+  };
+  
+  const handleMouseEnter = () => {
+    if (!interactive) return;
+    setIsHovering(true);
+    startAnimation();
+  };
+  
+  const handleMouseLeave = () => {
+    if (!interactive) return;
+    setIsHovering(false);
+    abortAnimation();
+  };
+  
+  const currentProgress = isAnimating ? displayProgress : actualProgress;
+  const dashOffset = circumference - (circumference * currentProgress / 100);
+  const displayValue = isAnimating ? displayCount : actualProgress;
+  
+  return (
+    <div 
+      className="relative group cursor-pointer"
+      style={{ width: size, height: size }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseEnter}
+      onTouchEnd={handleMouseLeave}
+    >
+      <svg className="w-full h-full -rotate-90" style={{ display: 'block' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(0,0,0,0.06)"
+          strokeWidth={strokeWidth}
+          className="dark:stroke-gray-700"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          style={{
+            transition: isAnimating ? 'none' : `stroke-dashoffset ${REPAYMENT_ABORT_DURATION}ms ease-out`
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span 
+          className="font-bold"
+          style={{ fontSize: size <= 86 ? '0.9rem' : '1.1rem', color: '#111827' }}
+        >
+          {displayValue}%
+        </span>
+        <span className="text-[9px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+          REPAID
+        </span>
+        <span className="text-[8px] text-gray-500 dark:text-gray-600 mt-0.5">
+          {formatCurrency(customer.totalRepaid)} paid
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ─── LoanProgressRing ─── (Loan Tab)
+interface LoanProgressRingProps {
+  loan: Loan;
+  formatCurrency: (n: number) => string;
+  size?: number;
+  strokeWidth?: number;
+}
+
+const LoanProgressRing = ({ loan, formatCurrency, size = 48, strokeWidth = 4 }: LoanProgressRingProps) => {
+  const progress = loan.amount > 0 
+    ? Math.round(((loan.amountPaid || 0) / loan.amount) * 100) 
+    : 0;
+  
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference - (circumference * progress / 100);
+  
+  const getColor = () => {
+    if (progress >= 100) return '#10B981';
+    if (progress >= 50) return '#F59E0B';
+    return '#EF4444';
+  };
+  
+  const ringColor = getColor();
+  
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="w-full h-full -rotate-90" style={{ display: 'block' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(0,0,0,0.06)"
+          strokeWidth={strokeWidth}
+          className="dark:stroke-gray-700"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          className="transition-all duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-xs font-bold text-gray-900 dark:text-white">
+          {progress}%
+        </span>
+        <span className="text-[8px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          PAID
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // ─── Loan Card ───
 const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; formatCurrency: (n: number) => string; onRecordPayment: (loan: Loan) => void }) => {
   const loanProgress = loan.progress || 0;
@@ -104,15 +495,12 @@ const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; forma
     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700/60">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          {/* Small progress ring for each loan */}
-          <ProgressRing
-            progress={loanProgress}
-            size={48}
-            strokeWidth={4}
-            status={loanStatus}
-            interactive={true}
-            ringType="active"
-            //animateOnHover={true}
+          {/* Small progress ring for each individual loan */}
+          <LoanProgressRing 
+           loan={loan}
+           formatCurrency={formatCurrency}
+           size={48}
+           strokeWidth={4}
           />
           <div>
             <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
@@ -444,18 +832,13 @@ export default function CustomerDetailsPage() {
             </div>
 
             <div className="shrink-0 pr-1">
-             <ProgressRing
-             progress={activePercentage}
-             size={90}
-             strokeWidth={6}
-             status={hasOverdue ? 'overdue' : (activePercentage >= 100 ? 'completed' : 'active')}
-             label="active"
-             value={`${customer.activeLoans} / ${customer.totalLoans}`}
-             ringType="active"
-             interactive={true}
-             //animateOnHover={true}
-             //pulseOnOverdue={hasOverdue}
-/>
+         <LoanHealthRing 
+          customer={customer}
+          size={90}
+          strokeWidth={6}
+          interactive={true}
+          onDark={true}
+         />
             </div>
 
           </div>
@@ -492,16 +875,12 @@ export default function CustomerDetailsPage() {
           }} />
           <div className="relative flex items-center gap-6 px-6 py-5">
             <div className="shrink-0">
-              <ProgressRing
-               progress={repaidPercentage}
-               size={100}
-               strokeWidth={7}
-               status={repaidPercentage >= 100 ? 'completed' : 'active'}
-               label="repaid"
-               value={`${formatCurrency(customer.totalRepaid)} paid`}
-               ringType="repayment"
+              <RepaymentRing 
+                customer={customer}
+                formatCurrency={formatCurrency}
+                size={100}
+                strokeWidth={7}
                interactive={true}
-               //animateOnHover={true}
               />
             </div>
             <div className="w-px self-stretch bg-gray-100 dark:bg-gray-800 shrink-0" />
