@@ -195,8 +195,8 @@ const LoanCard = ({ loan, formatCurrency }: { loan: Loan; formatCurrency: (n: nu
   </div>
 );
 // ─── Document Card Component (with delete button) ───
-const DocumentCard = ({ doc, onDelete }: { doc: Document; onDelete: (id: string) => void }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
+const DocumentCard = ({ doc, customerId, onDelete }: { doc: Document; customerId: string; onDelete: (id: string) => void }) => {
+  const [isDeleting, setIsDeleting] = useState(false); 
   
   const formatFileSize = (bytes?: number) => {
     if (!bytes || bytes === 0) return 'Unknown size';
@@ -216,7 +216,7 @@ const DocumentCard = ({ doc, onDelete }: { doc: Document; onDelete: (id: string)
     
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/admin/customers/${doc.id}/documents/${doc.id}`, {
+      const response = await fetch(`/api/admin/customers/${customerId}/documents/${doc.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -703,9 +703,10 @@ export default function CustomerDetailsPage() {
           <DocumentCard 
             key={doc.id} 
             doc={doc} 
+            customerId={customerId}
             onDelete={(deletedId) => {
-              setDocuments(documents.filter(d => d.id !== deletedId));
-            }}
+          setDocuments(documents.filter(d => d.id !== deletedId));
+           }}
           />
         ))}
         <div className="flex justify-center mt-4">

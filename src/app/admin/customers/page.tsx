@@ -36,6 +36,7 @@ interface Customer {
   city?: string;
   region?: string;
   createdAt: string;
+  updatedAt?: string;
   _count?: { loans: number };
   lastActive?: string;
 }
