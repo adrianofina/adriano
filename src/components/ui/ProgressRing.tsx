@@ -1,67 +1,140 @@
 ﻿"use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface ProgressRingProps {
   progress: number;
   size?: number;
   strokeWidth?: number;
-  color?: string;
+  status?: 'active' | 'overdue' | 'completed' | 'pending';
   label?: string;
   value?: string;
   onClick?: () => void;
   interactive?: boolean;
+  animateOnHover?: boolean;
+  pulseOnOverdue?: boolean;
 }
 
 export default function ProgressRing({
   progress,
   size = 100,
   strokeWidth = 7,
-  color = '#818CF8',
+  status = 'active',
   label,
   value,
   onClick,
-  interactive = true
+  interactive = true,
+  animateOnHover = false,
+  pulseOnOverdue = false
 }: ProgressRingProps) {
   const [hoverProgress, setHoverProgress] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [displayProgress, setDisplayProgress] = useState(progress);
+  const [hasPulse, setHasPulse] = useState(pulseOnOverdue && status === 'overdue');
+  const animationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(100, Math.max(0, progress));
-  const dashOffset = circumference - (circumference * clamped) / 100;
   
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!interactive) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-    let progressValue = ((angle + Math.PI) / (2 * Math.PI)) * 100;
-    progressValue = Math.max(0, Math.min(100, progressValue));
-    setHoverProgress(progressValue);
+  // Get color based on status
+  const getColor = () => {
+    if (clamped >= 100) return '#10B981';
+    if (status === 'overdue') return '#EF4444';
+    if (status === 'pending') return '#F59E0B';
+    return '#818CF8';
   };
   
-  const displayProgress = isHovering ? Math.round(hoverProgress) : Math.round(clamped);
-  const displayOffset = isHovering 
-    ? circumference - (circumference * hoverProgress / 100)
-    : dashOffset;
+  const ringColor = getColor();
+  
+  // Get glow intensity based on status
+  const getGlowIntensity = () => {
+    if (status === 'overdue') return '0 0 12px rgba(239,68,68,0.6)';
+    if (clamped >= 100) return '0 0 8px rgba(16,185,129,0.5)';
+    return '0 0 6px rgba(129,140,248,0.4)';
+  };
+  
+  // Pulse animation for overdue
+  useEffect(() => {
+    if (pulseOnOverdue && status === 'overdue') {
+      const interval = setInterval(() => {
+        setHasPulse(prev => !prev);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [pulseOnOverdue, status]);
+  
+  const handleMouseEnter = () => {
+    if (!interactive) return;
+    setIsHovering(true);
+    
+    if (animateOnHover) {
+      setIsAnimating(true);
+      setDisplayProgress(0);
+      setHoverProgress(0);
+      
+      const startTime = Date.now();
+      const duration = 1200;
+      const targetProgress = clamped;
+      
+      const animate = () => {
+        const now = Date.now();
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / duration);
+        const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
+        const current = targetProgress * easeOut(t);
+        setDisplayProgress(current);
+        setHoverProgress(current);
+        
+        if (t < 1) {
+          animationRef.current = setTimeout(animate, 16);
+        } else {
+          setDisplayProgress(targetProgress);
+          setHoverProgress(targetProgress);
+          setIsAnimating(false);
+        }
+      };
+      
+      if (animationRef.current) clearTimeout(animationRef.current);
+      animationRef.current = setTimeout(animate, 16);
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    if (!interactive) return;
+    setIsHovering(false);
+    
+    if (animateOnHover && animationRef.current) {
+      clearTimeout(animationRef.current);
+      setDisplayProgress(clamped);
+      setHoverProgress(clamped);
+      setIsAnimating(false);
+    }
+  };
+  
+  const currentProgress = isHovering && animateOnHover ? displayProgress : clamped;
+  const displayOffset = circumference - (circumference * currentProgress / 100);
+  
+  const handleTouchStart = () => {
+    handleMouseEnter();
+  };
+  
+  const handleTouchEnd = () => {
+    handleMouseLeave();
+  };
   
   return (
     <div 
       className="relative group"
       style={{ width: size, height: size }}
-      onMouseEnter={() => interactive && setIsHovering(true)}
-      onMouseMove={interactive ? handleMouseMove : undefined}
-      onMouseLeave={() => {
-        setIsHovering(false);
-        setHoverProgress(0);
-      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       onClick={onClick}
     >
       <svg className="w-full h-full -rotate-90" style={{ display: 'block' }}>
-        {/* Background track */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -71,22 +144,23 @@ export default function ProgressRing({
           strokeWidth={strokeWidth}
           className="dark:stroke-gray-700"
         />
-        {/* Actual progress ring */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={color}
+          stroke={ringColor}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
-          strokeDashoffset={displayOffset}
+          strokeDashoffset={isNaN(displayOffset) ? circumference : displayOffset}
           strokeLinecap="round"
-          className="transition-all duration-700 ease-out"
-          style={{ filter: `drop-shadow(0 0 6px ${color}70)` }}
+          className={`transition-all duration-300 ease-out ${hasPulse ? 'animate-pulse-scale' : ''}`}
+          style={{ 
+            filter: `drop-shadow(${getGlowIntensity()})`,
+            transition: isAnimating ? 'none' : 'stroke-dashoffset 0.7s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
         />
-        {/* Hover preview ring */}
-        {isHovering && (
+        {isHovering && !animateOnHover && (
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -103,12 +177,18 @@ export default function ProgressRing({
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className={`font-bold text-gray-900 dark:text-white`} style={{ fontSize: size <= 86 ? '0.95rem' : '1.15rem' }}>
-          {displayProgress}%
+        <span 
+          className="font-bold transition-colors duration-200 dark:text-white"
+          style={{ 
+            fontSize: size <= 86 ? '0.9rem' : '1.1rem',
+            color: status === 'overdue' ? '#EF4444' : (clamped >= 100 ? '#10B981' : '#111827')
+          }}
+        >
+          {Math.round(currentProgress)}%
         </span>
         {label && (
           <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
-            {isHovering ? 'preview' : label}
+            {isHovering && animateOnHover ? 'preview' : label}
           </span>
         )}
         {value && !isHovering && (
@@ -117,6 +197,16 @@ export default function ProgressRing({
           </span>
         )}
       </div>
+      
+      <style jsx>{`
+        @keyframes pulse-scale {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.02); }
+        }
+        .animate-pulse-scale {
+          animation: pulse-scale 1s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }

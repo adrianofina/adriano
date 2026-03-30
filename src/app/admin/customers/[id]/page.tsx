@@ -29,6 +29,8 @@ import {
 import LoanModal from '@/components/modals/LoanModal';
 import PaymentModal from '@/components/modals/PaymentModal';
 import DocumentUploadModal from '@/components/modals/DocumentUploadModal';
+import ProgressRing from '@/components/ui/ProgressRing';
+
 
 interface Customer {
   id: string;
@@ -93,96 +95,24 @@ interface Document {
   verified: boolean;
 }
 
-
-// ─── Progress Ring ───
-const ProgressRing = ({
-  progress,
-  size = 100,
-  strokeWidth = 7,
-  status = 'active',
-  label,
-  value,
-  onDark = false,
-}: {
-  progress: number;
-  size?: number;
-  strokeWidth?: number;
-  status?: string;
-  label: string;
-  value: string;
-  onDark?: boolean;
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const clamped = Math.min(100, Math.max(0, progress));
-  const dashOffset = circumference - (circumference * clamped) / 100;
-  const isEmpty = clamped === 0;
-
-  const ringColor =
-    clamped >= 100 ? '#10B981'
-    : status === 'overdue' ? '#EF4444'
-    : isEmpty ? (onDark ? '#374151' : '#D1D5DB')
-    : '#818CF8';
-
-  const trackColor = onDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const textColor  = isEmpty
-    ? (onDark ? '#6B7280' : '#9CA3AF')
-    : (onDark ? '#FFFFFF' : '#111827');
-  const subColor   = onDark ? 'rgba(255,255,255,0.38)' : 'rgba(0,0,0,0.35)';
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg className="w-full h-full -rotate-90" style={{ display: 'block' }}>
-          <circle cx={size / 2} cy={size / 2} r={radius}
-            fill="none" stroke={trackColor} strokeWidth={strokeWidth} />
-          <circle cx={size / 2} cy={size / 2} r={radius}
-            fill="none" stroke={ringColor} strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={isEmpty ? circumference : dashOffset}
-            strokeLinecap="round"
-            style={{
-              transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)',
-              filter: isEmpty ? 'none' : `drop-shadow(0 0 6px ${ringColor}70)`,
-            }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span style={{ fontSize: size <= 86 ? '0.95rem' : '1.15rem', fontWeight: 700, color: textColor, lineHeight: 1 }}>
-            {clamped}%
-          </span>
-          <span style={{ fontSize: '0.55rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: subColor, marginTop: 3 }}>
-            {label}
-          </span>
-        </div>
-      </div>
-      <span style={{ fontSize: '0.65rem', color: subColor }}>{value}</span>
-    </div>
-  );
-};
 // ─── Loan Card ───
 const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; formatCurrency: (n: number) => string; onRecordPayment: (loan: Loan) => void }) => {
-  const [showProgressRing, setShowProgressRing] = useState(false);
+  const loanProgress = loan.progress || 0;
+  const loanStatus = loan.status === 'overdue' ? 'overdue' : (loanProgress >= 100 ? 'completed' : 'active');
   
   return (
     <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700/60">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          {/* Small progress ring */}
-          <div 
-            className="cursor-pointer group relative"
-            onMouseEnter={() => setShowProgressRing(true)}
-            onMouseLeave={() => setShowProgressRing(false)}
-          >
-            <ProgressRing
-              progress={loan.progress}
-              size={48}
-              strokeWidth={4}
-              color={loan.status === 'active' ? '#10B981' : '#EF4444'}
-              interactive={true}
-              onClick={() => {}}
-            />
-          </div>
+          {/* Small progress ring for each loan */}
+          <ProgressRing
+            progress={loanProgress}
+            size={48}
+            strokeWidth={4}
+            status={loanStatus}
+            interactive={true}
+            animateOnHover={true}
+          />
           <div>
             <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">{loan.purpose}</p>
@@ -197,10 +127,10 @@ const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; forma
           {loan.status === 'active' && (
             <button
               onClick={() => onRecordPayment(loan)}
-              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
+              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
             >
               <DollarSign className="w-3 h-3" />
-              Pay
+              Record Payment
             </button>
           )}
         </div>
@@ -220,7 +150,7 @@ const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; forma
         </div>
         <div>
           <p className="text-gray-500 dark:text-gray-400">Progress</p>
-          <p className="font-semibold text-indigo-600 dark:text-indigo-400">{loan.progress}%</p>
+          <p className="font-semibold text-indigo-600 dark:text-indigo-400">{loanProgress}%</p>
         </div>
       </div>
       {loan.dueDate && (
@@ -513,15 +443,17 @@ export default function CustomerDetailsPage() {
             </div>
 
             <div className="shrink-0 pr-1">
-              <ProgressRing
-                progress={activePercentage}
-                size={90}
-                strokeWidth={6}
-                status={hasOverdue ? 'overdue' : 'active'}
-                label="active"
-                value={`${customer.activeLoans} / ${customer.totalLoans}`}
-                onDark={false}
-              />
+             <ProgressRing
+             progress={activePercentage}
+             size={90}
+             strokeWidth={6}
+             status={hasOverdue ? 'overdue' : (activePercentage >= 100 ? 'completed' : 'active')}
+             label="active"
+             value={`${customer.activeLoans} / ${customer.totalLoans}`}
+             interactive={true}
+             animateOnHover={true}
+             pulseOnOverdue={hasOverdue}
+/>
             </div>
 
           </div>
@@ -559,13 +491,14 @@ export default function CustomerDetailsPage() {
           <div className="relative flex items-center gap-6 px-6 py-5">
             <div className="shrink-0">
               <ProgressRing
-                progress={repaidPercentage}
-                size={100}
-                strokeWidth={7}
-                status={repaidPercentage >= 100 ? 'completed' : 'active'}
-                label="repaid"
-                value={`${formatCurrency(customer.totalRepaid)} paid`}
-                onDark={false}
+               progress={repaidPercentage}
+               size={100}
+               strokeWidth={7}
+               status={repaidPercentage >= 100 ? 'completed' : 'active'}
+               label="repaid"
+               value={`${formatCurrency(customer.totalRepaid)} paid`}
+               interactive={true}
+               animateOnHover={true}
               />
             </div>
             <div className="w-px self-stretch bg-gray-100 dark:bg-gray-800 shrink-0" />
