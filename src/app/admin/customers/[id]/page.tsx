@@ -111,7 +111,8 @@ const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; forma
             strokeWidth={4}
             status={loanStatus}
             interactive={true}
-            animateOnHover={true}
+            ringType="active"
+            //animateOnHover={true}
           />
           <div>
             <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
@@ -148,10 +149,10 @@ const LoanCard = ({ loan, formatCurrency, onRecordPayment }: { loan: Loan; forma
           <p className="text-gray-500 dark:text-gray-400">Remaining</p>
           <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance || loan.amount)}</p>
         </div>
-        <div>
-          <p className="text-gray-500 dark:text-gray-400">Progress</p>
-          <p className="font-semibold text-indigo-600 dark:text-indigo-400">{loanProgress}%</p>
-        </div>
+       <div>
+        <p className="text-gray-500 dark:text-gray-400">Progress</p>
+        <p className="font-semibold text-indigo-600 dark:text-indigo-400">{loanProgress}%</p>
+       </div>
       </div>
       {loan.dueDate && (
         <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -450,9 +451,10 @@ export default function CustomerDetailsPage() {
              status={hasOverdue ? 'overdue' : (activePercentage >= 100 ? 'completed' : 'active')}
              label="active"
              value={`${customer.activeLoans} / ${customer.totalLoans}`}
+             ringType="active"
              interactive={true}
-             animateOnHover={true}
-             pulseOnOverdue={hasOverdue}
+             //animateOnHover={true}
+             //pulseOnOverdue={hasOverdue}
 />
             </div>
 
@@ -497,8 +499,9 @@ export default function CustomerDetailsPage() {
                status={repaidPercentage >= 100 ? 'completed' : 'active'}
                label="repaid"
                value={`${formatCurrency(customer.totalRepaid)} paid`}
+               ringType="repayment"
                interactive={true}
-               animateOnHover={true}
+               //animateOnHover={true}
               />
             </div>
             <div className="w-px self-stretch bg-gray-100 dark:bg-gray-800 shrink-0" />
