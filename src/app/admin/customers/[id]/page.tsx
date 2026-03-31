@@ -475,7 +475,6 @@ const LoanProgressRing = ({
     </div>
   );
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // ─── LoanCard
 // ─────────────────────────────────────────────────────────────────────────────
@@ -490,8 +489,17 @@ const LoanCard = ({
     ? Math.round(((loan.amountPaid || 0) / loan.amount) * 100) 
     : 0;
   
+  // Calculate remaining properly - for completed loans, it should be 0
+  const remaining = loan.status === 'completed' || progress >= 100 
+    ? 0 
+    : (loan.remainingBalance || (loan.amount - (loan.amountPaid || 0)));
+  
   // Determine color based on progress and status
   const progressColor = 
+    loan.status === 'completed' || progress >= 100 ? 'text-emerald-600' :
+    progress >= 50 ? 'text-amber-600' : 'text-red-500';
+  
+  const barColor = 
     loan.status === 'completed' || progress >= 100 ? 'bg-emerald-500' :
     progress >= 50 ? 'bg-amber-500' : 'bg-red-500';
   
@@ -535,11 +543,11 @@ const LoanCard = ({
           </div>
           <div>
             <p className="text-gray-500 dark:text-gray-400">Remaining</p>
-            <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance || loan.amount)}</p>
+            <p className={`font-semibold ${progressColor}`}>{formatCurrency(remaining)}</p>
           </div>
           <div>
             <p className="text-gray-500 dark:text-gray-400">Progress</p>
-            <p className="font-semibold text-indigo-600 dark:text-indigo-400">{progress}%</p>
+            <p className={`font-semibold ${progressColor}`}>{progress}%</p>
           </div>
         </div>
         
@@ -550,10 +558,10 @@ const LoanCard = ({
         )}
       </div>
       
-      {/* SUBTLE PROGRESS BAR - at the very bottom edge of the card */}
+      {/* SUBTLE PROGRESS BAR - i so love it */}
       <div className="h-1 w-full bg-gray-200 dark:bg-gray-700">
         <div 
-          className={`h-full transition-all duration-500 ${progressColor}`}
+          className={`h-full transition-all duration-500 ${barColor}`}
           style={{ width: `${progress}%` }}
         />
       </div>
