@@ -14,7 +14,7 @@ import * as React from 'react';
 const { useState, useEffect, useRef, useCallback } = React;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ANIMATION CONSTANTS — tweak these to tune feel
+// ANIMATION CONSTANTS — with just a little tweak 
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Ring 1 — LoanHealthRing
@@ -207,11 +207,8 @@ const LoanHealthRing = ({
 
   const dashOffset = baseDashOffset;
 
-  const textColor = onDark
-    ? '#fff'
-    : clamped < 50 ? '#EF4444' : clamped >= 80 ? '#10B981' : '#111827';
-  const subColor  = onDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)';
-
+  const textColor = clamped < 50 ? '#EF4444' : clamped >= 80 ? '#10B981' : (onDark ? '#FFFFFF' : '#64718d');
+  const subColor  = onDark ? 'rgba(230, 229, 229, 0.88)' : 'rgba(168, 168, 168, 0.7)';
   return (
     <div
       style={{ width: size, height: size, position: 'relative', cursor: 'pointer', minWidth: 44, minHeight: 44 }}
@@ -384,7 +381,7 @@ const LoanProgressRing = ({
   const actual = loan.amount > 0
     ? Math.round(((loan.amountPaid || 0) / loan.amount) * 100) : 0;
 
-  const getColor = (pct: number) => pct >= 100 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#818CF8';
+  const getColor = (pct: number) => pct >= 100 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#EF4444';
   const color = getColor(actual);
 
   const radius        = (size - strokeWidth) / 2;
@@ -487,58 +484,82 @@ const LoanCard = ({
 }: {
   loan: Loan; formatCurrency: (n: number) => string;
   onRecordPayment: (loan: Loan) => void;
-}) => (
-  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700/60">
-    <div className="flex items-start justify-between mb-3">
-      <div className="flex items-center gap-3">
-        <LoanProgressRing loan={loan} size={48} strokeWidth={4} />
-        <div>
-          <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{loan.purpose}</p>
+}) => {
+  // Calculate progress directly from amount and amountPaid
+  const progress = loan.amount > 0 
+    ? Math.round(((loan.amountPaid || 0) / loan.amount) * 100) 
+    : 0;
+  
+  // Determine color based on progress and status
+  const progressColor = 
+    loan.status === 'completed' || progress >= 100 ? 'bg-emerald-500' :
+    progress >= 50 ? 'bg-amber-500' : 'bg-red-500';
+  
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700/60 relative overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <LoanProgressRing loan={loan} size={48} strokeWidth={4} />
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{loan.loanId}</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{loan.purpose}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <span className={`px-2.5 py-0.5 text-[11px] font-medium rounded-full ${
+              loan.status === 'active'  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : loan.status === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              : loan.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+            }`}>{loan.status}</span>
+            {(loan.status === 'active' || loan.status === 'overdue') && (
+              <button onClick={() => onRecordPayment(loan)}
+                className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1">
+                <DollarSign className="w-3 h-3" />
+                Record Payment
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap justify-end">
-        <span className={`px-2.5 py-0.5 text-[11px] font-medium rounded-full ${
-          loan.status === 'active'  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-          : loan.status === 'overdue' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-        }`}>{loan.status}</span>
-        {(loan.status === 'active' || loan.status === 'overdue') && (
-          <button onClick={() => onRecordPayment(loan)}
-            className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1">
-            <DollarSign className="w-3 h-3" />
-            Record Payment
-          </button>
+        
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+          <div>
+            <p className="text-gray-500 dark:text-gray-400">Amount</p>
+            <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400">Paid</p>
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(loan.amountPaid || 0)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400">Remaining</p>
+            <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance || loan.amount)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400">Progress</p>
+            <p className="font-semibold text-indigo-600 dark:text-indigo-400">{progress}%</p>
+          </div>
+        </div>
+        
+        {loan.dueDate && (
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+            Due {new Date(loan.dueDate).toLocaleDateString()}
+          </p>
         )}
       </div>
-    </div>
-    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-      <div>
-        <p className="text-gray-500 dark:text-gray-400">Amount</p>
-        <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</p>
-      </div>
-      <div>
-        <p className="text-gray-500 dark:text-gray-400">Paid</p>
-        <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(loan.amountPaid || 0)}</p>
-      </div>
-      <div>
-        <p className="text-gray-500 dark:text-gray-400">Remaining</p>
-        <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance || loan.amount)}</p>
-      </div>
-      <div>
-        <p className="text-gray-500 dark:text-gray-400">Progress</p>
-        <p className="font-semibold text-indigo-600 dark:text-indigo-400">
-          {loan.amount > 0 ? Math.round(((loan.amountPaid || 0) / loan.amount) * 100) : 0}%
-        </p>
+      
+      {/* SUBTLE PROGRESS BAR - at the very bottom edge of the card */}
+      <div className="h-1 w-full bg-gray-200 dark:bg-gray-700">
+        <div 
+          className={`h-full transition-all duration-500 ${progressColor}`}
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
-    {loan.dueDate && (
-      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-        Due {new Date(loan.dueDate).toLocaleDateString()}
-      </p>
-    )}
-  </div>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ─── DocumentCard
@@ -934,6 +955,8 @@ export default function CustomerDetailsPage() {
                 )}
               </div>
             )}
+
+            
 
             {/* Documents */}
             {activeTab === 'documents' && (
