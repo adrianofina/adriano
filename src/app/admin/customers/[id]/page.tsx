@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Phone, Mail, MapPin, CreditCard, FileText, Edit,
   Upload, CheckCircle, Clock, User, Briefcase, Building,
-  AlertCircle, TrendingUp, Plus, Eye, Download, DollarSign, Trash2
+  AlertCircle, TrendingUp, Plus, Eye,  Scale, Gavel, Download, DollarSign, Trash2
 } from 'lucide-react';
 import LoanModal from '@/components/modals/LoanModal';
 import PaymentModal from '@/components/modals/PaymentModal';
@@ -805,7 +805,83 @@ export default function CustomerDetailsPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 pt-6 pb-10 space-y-4">
+{/* Overdue Alert - Professional urgency */}
+{(() => {
+  const overdueLoans = loans.filter(loan => loan.status === 'overdue');
+  if (overdueLoans.length === 0) return null;
+  
+  const totalOverdueAmount = overdueLoans.reduce((sum, loan) => sum + (loan.remainingBalance || loan.amount), 0);
+  
+  return (
+    <div className="mx-6 mb-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-sm shadow-sm overflow-hidden">
+      <div className="p-4">
+        <div className="flex flex-wrap items-start gap-4">
+          {/* Icon */}
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Overdue Loans
+              </h3>
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-300">
+                {overdueLoans.length} loan{overdueLoans.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+              Total overdue: {formatCurrency(totalOverdueAmount)}
+            </p>
+            <div className="flex flex-wrap gap-3 mt-3">
+              <button 
+                onClick={() => {
+                  const phone = customer?.phoneNumber;
+                  if (phone) window.location.href = `tel:${phone}`;
+                  else alert('No phone number on file');
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 transition-colors"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                Call
+              </button>
+              <button 
+                onClick={() => {
+                  const email = customer?.email;
+                  if (email) window.location.href = `mailto:${email}?subject=Overdue Loan Notice`;
+                  else alert('No email on file');
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 transition-colors"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Email
+              </button>
+              <button 
+                onClick={() => {
+                  if (confirm('Initiate court case for this overdue loan?')) {
+                    alert('Court case record created. Legal department will be notified.');
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300 transition-colors"
+              >
+                <Gavel className="w-3.5 h-3.5" />
+                Legal Action
+              </button>
+            </div>
+          </div>
+          
+          {/* Subtle accent line */}
+          <div className="w-1 h-10 bg-amber-400 dark:bg-amber-500 rounded-full self-center hidden sm:block" />
+        </div>
+      </div>
+    </div>
+  );
+})()}
+
+        <main className="max-w-7xl mx-auto px-6 pt-6 pb-10 space-y-4">
 
         {/* Contact Strip */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
