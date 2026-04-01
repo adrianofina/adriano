@@ -4,30 +4,18 @@ import { getAuthCookie, verifyToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
-    console.log('📋 GET /api/admin/customers called');
-    
-    // Check authentication
     const token = await getAuthCookie();
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = verifyToken(token);
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get ONLY customers that are NOT deleted
     const customers = await db.customer.findMany({
-      where: {
-        deletedAt: null  // This filters out soft-deleted customers
-      },
+      where: { deletedAt: null },
       select: {
         id: true,
         customerId: true,
@@ -38,29 +26,16 @@ export async function GET(request: Request) {
         city: true,
         region: true,
         createdAt: true,
-        _count: {
-          select: {
-            loans: true
-          }
-        }
+        _count: { select: { loans: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`✅ Found ${customers.length} active customers`);
-
-    return NextResponse.json({
-      success: true,
-      data: customers
-    });
-
-  } catch (error) {
+    return NextResponse.json({ success: true, data: customers });
+  } catch (error: any) {
     console.error('❌ Customers API error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal server error'
-      },
+      { success: false, error: error.message || 'Failed to fetch customers' },
       { status: 500 }
     );
   }
@@ -69,22 +44,15 @@ export async function GET(request: Request) {
 export async function POST(req: Request) {
   try {
     console.log('📝 POST /api/admin/customers called');
-    
-    // Check authentication
+
     const token = await getAuthCookie();
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = verifyToken(token);
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
@@ -98,10 +66,64 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check for duplicate phone number (only if provided)
+    const existingPhone = await db.customer.findFirst({
+      where: { phoneNumber: body.phoneNumber, deletedAt: null }
+    });
+
+    if (existingPhone) {
+      return NextResponse.json(
+        { success: false, error: 'A customer with this phone number already exists' },
+        { status: 409 }
+      );
+    }
+
+    // Check for duplicate email if provided
+    if (body.email && body.email.trim() !== '') {
+      const existingEmail = await db.customer.findFirst({
+        where: { email: body.email, deletedAt: null }
+      });
+
+      if (existingEmail) {
+        return NextResponse.json(
+          { success: false, error: 'A customer with this email already exists' },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Check for duplicate National ID ONLY if provided (not empty)
+    if (body.nationalId && body.nationalId.trim() !== '') {
+      const existingNationalId = await db.customer.findFirst({
+        where: { nationalId: body.nationalId, deletedAt: null }
+      });
+
+      if (existingNationalId) {
+        return NextResponse.json(
+          { success: false, error: 'A customer with this National ID already exists' },
+          { status: 409 }
+        );
+      }
+    }
+
     // Generate customer ID
     const year = new Date().getFullYear();
     const count = await db.customer.count();
     const customerId = `CUST-${year}-${(count + 1).toString().padStart(4, '0')}`;
+
+    // Prepare data - set empty strings to null
+    const nationalId = body.nationalId && body.nationalId.trim() !== '' ? body.nationalId : null;
+    const email = body.email && body.email.trim() !== '' ? body.email : null;
+    const alternativePhone = body.alternativePhone && body.alternativePhone.trim() !== '' ? body.alternativePhone : null;
+    const businessName = body.businessName && body.businessName.trim() !== '' ? body.businessName : null;
+    const employer = body.employer && body.employer.trim() !== '' ? body.employer : null;
+    const address = body.address && body.address.trim() !== '' ? body.address : null;
+    const city = body.city && body.city.trim() !== '' ? body.city : null;
+    const region = body.region && body.region.trim() !== '' ? body.region : null;
+    const occupation = body.occupation && body.occupation.trim() !== '' ? body.occupation : null;
+    const bankName = body.bankName && body.bankName.trim() !== '' ? body.bankName : null;
+    const accountNumber = body.accountNumber && body.accountNumber.trim() !== '' ? body.accountNumber : null;
+    const mobileMoneyNumber = body.mobileMoneyNumber && body.mobileMoneyNumber.trim() !== '' ? body.mobileMoneyNumber : null;
 
     // Create customer
     const customer = await db.customer.create({
@@ -111,24 +133,24 @@ export async function POST(req: Request) {
         surname: body.surname,
         middleName: body.middleName,
         phoneNumber: body.phoneNumber,
-        alternativePhone: body.alternativePhone,
-        email: body.email,
+        alternativePhone,
+        email,
         dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
         gender: body.gender,
-        address: body.address,
-        city: body.city,
-        region: body.region,
-        occupation: body.occupation,
-        employer: body.employer,
+        address,
+        city,
+        region,
+        occupation,
+        employer,
         monthlyIncome: body.monthlyIncome ? parseFloat(body.monthlyIncome) : null,
-        businessName: body.businessName,
+        businessName,
         maritalStatus: body.maritalStatus,
         dependents: body.dependents ? parseInt(body.dependents) : 0,
-        nationalId: body.nationalId,
-        bankName: body.bankName,
-        accountNumber: body.accountNumber,
+        nationalId,
+        bankName,
+        accountNumber,
         mobileMoneyProvider: body.mobileMoneyProvider,
-        mobileMoneyNumber: body.mobileMoneyNumber,
+        mobileMoneyNumber,
         creditScore: body.creditScore ? parseInt(body.creditScore) : 0,
         riskLevel: body.riskLevel || 'medium',
         category: body.category || 'Standard',
@@ -141,23 +163,55 @@ export async function POST(req: Request) {
       }
     });
 
-   // Create audit log - temporarily disabled until we fix the schema
-// await db.auditLog.create({
-//   data: {
-//     userId: user.id,
-//     action: 'CREATE',
-//     entityType: 'Customer',
-//     entityId: customer.id,
-//     after: JSON.stringify(customer),
-//     metadata: { customerId: customer.customerId }
-//   }
-// });
+    // Create audit log
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        userName: user.email,
+        userRole: user.role,
+        action: 'CREATE',
+        entityType: 'Customer',
+        entityId: customer.id,
+        details: {
+          customerId: customer.customerId,
+          firstName: customer.firstName,
+          surname: customer.surname,
+          phoneNumber: customer.phoneNumber
+        }
+      }
+    });
+
     console.log('✅ Customer created successfully:', customer.id);
     return NextResponse.json({ success: true, data: customer }, { status: 201 });
-  } catch (error) {
+
+  } catch (error: any) {
     console.error('❌ Error creating customer:', error);
+    
+    // Check for Prisma unique constraint errors
+    if (error.code === 'P2002') {
+      const target = error.meta?.target;
+      if (target && target.includes('nationalId')) {
+        return NextResponse.json(
+          { success: false, error: 'A customer with this National ID already exists' },
+          { status: 409 }
+        );
+      }
+      if (target && target.includes('phoneNumber')) {
+        return NextResponse.json(
+          { success: false, error: 'A customer with this phone number already exists' },
+          { status: 409 }
+        );
+      }
+      if (target && target.includes('email')) {
+        return NextResponse.json(
+          { success: false, error: 'A customer with this email already exists' },
+          { status: 409 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to create customer' },
+      { success: false, error: error.message || 'Failed to create customer' },
       { status: 500 }
     );
   }
