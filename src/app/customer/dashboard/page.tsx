@@ -330,7 +330,7 @@ export default function CustomerDashboard() {
           {/* SIDE BY SIDE LAYOUT: Customer Banner (left) + Ring Box (right) */}
           <div className="flex flex-col lg:flex-row gap-6">
             
-            {/* Customer Banner - Left side (flex-1) */}
+            {/* Customer Banner - Left side*/}
             <div className="flex-1 min-w-0 px-5 py-5 rounded-2xl" style={{
               background: 'linear-gradient(130deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 50%, rgba(59,130,246,0.07) 100%)',
               backdropFilter: 'blur(16px)',
@@ -367,7 +367,7 @@ export default function CustomerDashboard() {
               </div>
             </div>
 
-            {/* Ring Box - Right side (fixed width ~35-40%) - TALLER, WIDER RING */}
+            {/* Ring Box - Right side */}
             <div className="lg:w-[38%] flex flex-col items-center justify-center rounded-2xl cursor-pointer select-none p-6" style={{ 
               background: 'rgba(255,255,255,0.02)', 
               backdropFilter: 'blur(4px)',
@@ -377,7 +377,7 @@ export default function CustomerDashboard() {
               {/* Data on LEFT, Ring on RIGHT - Within the ring box */}
               <div className="flex flex-row items-center justify-center gap-4 w-full">
                 
-                {/* Data Section - LEFT side (afterthought) */}
+                {/* Data Section -an afterthought */}
                 <div className="flex-shrink-0 text-left">
                   <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${healthDisplay.bg} ${healthDisplay.color} ${healthDisplay.borderColor} ${hasActualOverdue ? 'animate-pulse' : ''}`}>
                     <HealthIcon className="w-3 h-3" />
@@ -389,7 +389,7 @@ export default function CustomerDashboard() {
                   )}
                 </div>
 
-                {/* Ring Section - RIGHT side (STAR of the show) - BIGGER */}
+                {/* Ring Section - RIGHT side (STAR of the show)*/}
                 <div className="flex-1 flex items-center justify-center" onClick={handleRingClick}>
                   <ProgressRing
                     progress={healthScore}
@@ -466,7 +466,7 @@ export default function CustomerDashboard() {
             </div>
           </button>
           
-          {/* Expandable content - Smooth animation */}
+          {/* Expandable content */}
           <div className="overflow-hidden transition-all duration-500 ease-in-out" style={{ maxHeight: isContactExpanded ? '300px' : '0px', opacity: isContactExpanded ? 1 : 0 }}>
             <div className="border-t border-gray-100 dark:border-gray-800 p-5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -515,7 +515,7 @@ export default function CustomerDashboard() {
           <SungJinwooShadow progress={repaidPercentage} height="h-1.5" />
         </div>
 
-        {/* Loan Portfolio Blades - DRAMATIC STAGGERED SLIDE IN */}
+        {/* Loan Portfolio Blades - blade master */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center"><CreditCard className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /></div><h2 className="font-black text-gray-900 dark:text-white tracking-tight">LOAN PORTFOLIO</h2></div>
@@ -545,7 +545,7 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
 
-                {/* Blueprint - DRAMATIC STAGGERED SLIDE IN */}
+                {/* Blueprint - cause i am */}
                 <div className="overflow-hidden transition-all duration-500 ease-out" style={{ maxHeight: isExpanded ? '500px' : '0px' }}>
                   <div className="border-t border-gray-100 dark:border-gray-800 p-4 bg-gray-50 dark:bg-gray-900/80">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
