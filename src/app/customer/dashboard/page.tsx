@@ -442,7 +442,7 @@ export default function CustomerDashboard() {
           </div>
         )}
 
-        {/* COLLAPSIBLE CONTACT STRIP - Unique expandable design */}
+        {/* COLLAPSIBLE CONTACT STRIP  */}
         <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
           <button
             onClick={() => setIsContactExpanded(!isContactExpanded)}
@@ -495,7 +495,7 @@ export default function CustomerDashboard() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center"><Target className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /></div>
-                <div><h3 className="font-black text-gray-900 dark:text-white text-sm tracking-tight">REPAYMENT GLOW PATH</h3><p className="text-[10px] text-gray-400 font-mono mt-0.5">overall progress tracker</p></div>
+                <div><h3 className="font-black text-gray-900 dark:text-white text-sm tracking-tight">LOAN EQUITY TRACKER</h3><p className="text-[10px] text-gray-400 font-mono mt-0.5">overall progress tracker</p></div>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-500/20"><Clock className="w-3 h-3 text-indigo-400" /><span className="text-xs font-black font-mono text-indigo-500 dark:text-indigo-400">{repaidPercentage}%</span></div>
             </div>
