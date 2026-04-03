@@ -558,7 +558,8 @@ const LoanCard = ({
         )}
       </div>
       
-      {/* SUBTLE PROGRESS BAR - i so love it */}
+      {/* SUBTLE PROGRESS BAR 
+      The Infamous SUNG JINWOO'S SHADOW- i so love it */}
       <div className="h-1 w-full bg-gray-200 dark:bg-gray-700">
         <div 
           className={`h-full transition-all duration-500 ${barColor}`}
