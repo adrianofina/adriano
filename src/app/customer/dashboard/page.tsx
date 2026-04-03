@@ -29,7 +29,9 @@ import {
   MapPin,
   Briefcase,
   Building,
-  ArrowRight
+  ArrowRight,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import ProgressRing from '@/components/ui/ProgressRing';
 import SungJinwooShadow from '@/components/ui/infamousshadow';
@@ -84,6 +86,7 @@ export default function CustomerDashboard() {
   const [showOverdueBanner, setShowOverdueBanner] = useState(false);
   const [hasUnreadNotification, setHasUnreadNotification] = useState(false);
   const [showPopupModal, setShowPopupModal] = useState(false);
+  const [isContactExpanded, setIsContactExpanded] = useState(false);
   const statusMessageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchUserData(); }, []);
@@ -222,7 +225,6 @@ export default function CustomerDashboard() {
 
   const handleRingClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Ring animation only - no popup
   };
 
   const handleClosePopup = () => setShowPopupModal(false);
@@ -325,10 +327,10 @@ export default function CustomerDashboard() {
             <Link href="/customer/profile" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 dark:text-white/60 dark:hover:text-white/90 border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-transparent transition-all"><User className="w-3.5 h-3.5" />Profile</Link>
           </div>
 
-          {/* Main Header Layout - Fixed responsive */}
-          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* SIDE BY SIDE LAYOUT: Customer Banner (left) + Ring Box (right) */}
+          <div className="flex flex-col lg:flex-row gap-6">
             
-            {/* Customer Info Card - Left side */}
+            {/* Customer Banner - Left side (flex-1) */}
             <div className="flex-1 min-w-0 px-5 py-5 rounded-2xl" style={{
               background: 'linear-gradient(130deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 50%, rgba(59,130,246,0.07) 100%)',
               backdropFilter: 'blur(16px)',
@@ -365,43 +367,46 @@ export default function CustomerDashboard() {
               </div>
             </div>
 
-            {/* Ring Container - Glass morphism, barely visible, 40% width on desktop */}
-            <div className="lg:w-[40%] flex flex-col items-center justify-center rounded-2xl cursor-pointer select-none p-4" style={{
-              background: 'rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.02)',
+            {/* Ring Box - Right side (fixed width ~35-40%) - TALLER, WIDER RING */}
+            <div className="lg:w-[38%] flex flex-col items-center justify-center rounded-2xl cursor-pointer select-none p-6" style={{ 
+              background: 'rgba(255,255,255,0.02)', 
+              backdropFilter: 'blur(4px)',
+              border: '1px solid rgba(255,255,255,0.05)',
             }} onClick={handleStatusMessageClick}>
               
-              {/* Ring - centered, stopPropagation so ring click = animation only */}
-              <div className="flex items-center justify-center" onClick={handleRingClick}>
-                <ProgressRing
-                  progress={healthScore}
-                  size={140}
-                  strokeWidth={10}
-                  status={getRingStatus()}
-                  label="HEALTH"
-                  value={`${healthScore}/100`}
-                  interactive={true}
-                  animateOnHover={true}
-                  pulseOnOverdue={hasActualOverdue}
-                  rotationEffect={true}
-                  glowIntensity={12}
-                  breatheOnOverdue={true}
-                  onDark={false}
-                />
-              </div>
-
-              {/* Status message - only ONE tap message */}
-              <div ref={statusMessageRef} className="mt-3 mb-2 flex flex-col items-center gap-1 px-3">
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${healthDisplay.bg} ${healthDisplay.color} ${healthDisplay.borderColor} ${hasActualOverdue ? 'animate-pulse' : ''}`}>
-                  <HealthIcon className="w-3 h-3" />
-                  {healthDisplay.text}
+              {/* Data on LEFT, Ring on RIGHT - Within the ring box */}
+              <div className="flex flex-row items-center justify-center gap-4 w-full">
+                
+                {/* Data Section - LEFT side (afterthought) */}
+                <div className="flex-shrink-0 text-left">
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${healthDisplay.bg} ${healthDisplay.color} ${healthDisplay.borderColor} ${hasActualOverdue ? 'animate-pulse' : ''}`}>
+                    <HealthIcon className="w-3 h-3" />
+                    {healthDisplay.text}
+                  </div>
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-1 max-w-[100px]">{healthDisplay.shortMessage}</p>
+                  {hasActualOverdue && (
+                    <p className="text-[8px] font-mono text-red-500 dark:text-red-400 font-bold mt-1 animate-pulse">🔴 {healthDisplay.tapMessage}</p>
+                  )}
                 </div>
-                <p className="text-[9px] text-gray-500 dark:text-gray-400 text-center leading-tight">{healthDisplay.shortMessage}</p>
-                {hasActualOverdue && (
-                  <p className="text-[9px] font-mono text-red-500 dark:text-red-400 font-bold animate-pulse">🔴 {healthDisplay.tapMessage}</p>
-                )}
+
+                {/* Ring Section - RIGHT side (STAR of the show) - BIGGER */}
+                <div className="flex-1 flex items-center justify-center" onClick={handleRingClick}>
+                  <ProgressRing
+                    progress={healthScore}
+                    size={160}
+                    strokeWidth={12}
+                    status={getRingStatus()}
+                    label="HEALTH"
+                    value={`${healthScore}/100`}
+                    interactive={true}
+                    animateOnHover={true}
+                    pulseOnOverdue={hasActualOverdue}
+                    rotationEffect={true}
+                    glowIntensity={14}
+                    breatheOnOverdue={true}
+                    onDark={false}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -410,25 +415,9 @@ export default function CustomerDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-10 space-y-4">
 
-        {/* Contact Strip */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0"><Phone className="w-3.5 h-3.5 text-indigo-500" /></div>
-            <div><p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Phone</p><p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{customer.phoneNumber}</p></div>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0"><Mail className="w-3.5 h-3.5 text-purple-500" /></div>
-            <div><p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Email</p><p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{customer.email || 'N/A'}</p></div>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center shrink-0"><MapPin className="w-3.5 h-3.5 text-blue-500" /></div>
-            <div><p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500">Address</p><p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{customer.address || customer.city || 'N/A'}</p></div>
-          </div>
-        </div>
-
-        {/* Inline Overdue Banner - Initially HIDDEN, appears after trigger */}
+        {/* Inline Overdue Banner - Initially HIDDEN */}
         {hasActualOverdue && showOverdueBanner && overdueLoan && (
-          <div className="rounded-2xl overflow-hidden bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+          <div className="rounded-2xl overflow-hidden bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 animate-slide-in">
             <div className="p-5">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700"><AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" /></div>
@@ -442,9 +431,9 @@ export default function CustomerDashboard() {
                     <div className="flex justify-between text-xs"><span className="text-amber-700 dark:text-amber-400">Penalty accrued</span><span className="font-mono font-bold text-red-600 dark:text-red-400">+{formatCurrency(penaltyAmount)}<span className="font-normal opacity-60 ml-1">(increases daily)</span></span></div>
                   </div>
                   <div className="flex flex-wrap gap-2.5 mt-4">
-                    <button onClick={() => window.location.href = `tel:${customer.phoneNumber}`} className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold">Call Support</button>
-                    <button onClick={() => window.location.href = `mailto:${customer.email}`} className="px-4 py-1.5 rounded-xl bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-xs font-bold">Email Support</button>
-                    <Link href={`/customer/loans/${overdueLoan.id}`} className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold">Pay Loan</Link>
+                    <button onClick={() => window.location.href = `tel:${customer.phoneNumber}`} className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all hover:scale-105">Call Support</button>
+                    <button onClick={() => window.location.href = `mailto:${customer.email}`} className="px-4 py-1.5 rounded-xl bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-xs font-bold transition-all hover:scale-105">Email Support</button>
+                    <Link href={`/customer/loans/${overdueLoan.id}`} className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all hover:scale-105">Pay Loan</Link>
                   </div>
                 </div>
               </div>
@@ -452,6 +441,52 @@ export default function CustomerDashboard() {
             <SungJinwooShadow progress={(overdueLoan.amountPaid / overdueLoan.amount) * 100} status="overdue" height="h-1" />
           </div>
         )}
+
+        {/* COLLAPSIBLE CONTACT STRIP - Unique expandable design */}
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setIsContactExpanded(!isContactExpanded)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center">
+                <Phone className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-gray-900 dark:text-white">Personal Information</h3>
+                <p className="text-[10px] text-gray-400 font-mono mt-0.5">tap to {isContactExpanded ? 'collapse' : 'expand'}</p>
+              </div>
+            </div>
+            <div className="transition-transform duration-300">
+              {isContactExpanded ? (
+                <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+              )}
+            </div>
+          </button>
+          
+          {/* Expandable content - Smooth animation */}
+          <div className="overflow-hidden transition-all duration-500 ease-in-out" style={{ maxHeight: isContactExpanded ? '300px' : '0px', opacity: isContactExpanded ? 1 : 0 }}>
+            <div className="border-t border-gray-100 dark:border-gray-800 p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center"><Phone className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /></div>
+                  <div><p className="text-[10px] uppercase tracking-widest text-gray-400">Phone</p><p className="text-sm font-medium text-gray-800 dark:text-gray-100">{customer.phoneNumber}</p></div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"><Mail className="w-4 h-4 text-purple-600 dark:text-purple-400" /></div>
+                  <div><p className="text-[10px] uppercase tracking-widest text-gray-400">Email</p><p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{customer.email || 'N/A'}</p></div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" /></div>
+                  <div><p className="text-[10px] uppercase tracking-widest text-gray-400">Address</p><p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{customer.address || customer.city || 'N/A'}</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <SungJinwooShadow progress={isContactExpanded ? 100 : 0} status="active" height="h-0.5" />
+        </div>
 
         {/* Repayment Glow Path */}
         <div className="relative overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-white dark:bg-gray-900 shadow-sm">
@@ -480,7 +515,7 @@ export default function CustomerDashboard() {
           <SungJinwooShadow progress={repaidPercentage} height="h-1.5" />
         </div>
 
-        {/* Loan Portfolio Blades - Dramatic slide from left */}
+        {/* Loan Portfolio Blades - DRAMATIC STAGGERED SLIDE IN */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-center"><CreditCard className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /></div><h2 className="font-black text-gray-900 dark:text-white tracking-tight">LOAN PORTFOLIO</h2></div>
@@ -510,25 +545,37 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
 
-                {/* Blueprint - DRAMATIC SLIDE FROM LEFT with spring effect */}
+                {/* Blueprint - DRAMATIC STAGGERED SLIDE IN */}
                 <div className="overflow-hidden transition-all duration-500 ease-out" style={{ maxHeight: isExpanded ? '500px' : '0px' }}>
-                  <div className="border-t border-gray-100 dark:border-gray-800 p-4 bg-gray-50 dark:bg-gray-900/80 transition-all duration-500 ease-out" style={{ transform: isExpanded ? 'translateX(0) rotateX(0)' : 'translateX(-30px) rotateX(5deg)', opacity: isExpanded ? 1 : 0, transformOrigin: 'left center' }}>
+                  <div className="border-t border-gray-100 dark:border-gray-800 p-4 bg-gray-50 dark:bg-gray-900/80">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <p className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 tracking-widest font-bold mb-3">PAYMENT DETAILS</p>
+                        <p className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 tracking-widest font-bold mb-3 transition-all duration-500 ease-out" style={{ transitionDelay: isExpanded ? '0ms' : '0ms', transform: isExpanded ? 'translateX(0) rotateY(0) scale(1)' : 'translateX(-40px) rotateY(15deg) scale(0.95)', opacity: isExpanded ? 1 : 0 }}>PAYMENT DETAILS</p>
                         <div className="space-y-0">
-                          <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0"><span className="text-xs text-gray-500 dark:text-gray-400">Total Amount</span><span className="font-mono font-bold text-xs text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</span></div>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0"><span className="text-xs text-gray-500 dark:text-gray-400">Amount Paid</span><span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">{formatCurrency(loan.amountPaid)}</span></div>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0"><span className="text-xs text-gray-500 dark:text-gray-400">Remaining</span><span className="font-mono font-bold text-xs text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance)}</span></div>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0"><span className="text-xs text-gray-500 dark:text-gray-400">Due Date</span><span className={`font-mono font-bold text-xs ${isLoanOverdue ? 'text-red-500 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}>{loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'Not set'}</span></div>
-                          {isLoanOverdue && (<div className="mt-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40"><p className="text-[10px] text-red-600 dark:text-red-400 font-mono flex items-center gap-1.5"><AlertTriangle className="w-3 h-3 shrink-0" />PENALTY ACCRUING: +1% daily</p></div>)}
+                          {[
+                            { label: 'Total Amount', value: formatCurrency(loan.amount), color: 'text-gray-900 dark:text-white', delay: 50 },
+                            { label: 'Amount Paid', value: formatCurrency(loan.amountPaid), color: 'text-emerald-600 dark:text-emerald-400', delay: 100 },
+                            { label: 'Remaining', value: formatCurrency(loan.remainingBalance), color: 'text-amber-600 dark:text-amber-400', delay: 150 },
+                            { label: 'Due Date', value: loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'Not set', color: isLoanOverdue ? 'text-red-500 dark:text-red-400' : 'text-gray-700 dark:text-gray-300', delay: 200 },
+                          ].map((item) => (
+                            <div key={item.label} className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800 last:border-0 transition-all duration-500 ease-out" style={{ transitionDelay: isExpanded ? `${item.delay}ms` : '0ms', transform: isExpanded ? 'translateX(0) rotateY(0) scale(1)' : 'translateX(-30px) rotateY(10deg) scale(0.95)', opacity: isExpanded ? 1 : 0 }}>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">{item.label}</span>
+                              <span className={`font-mono font-bold text-xs ${item.color}`}>{item.value}</span>
+                            </div>
+                          ))}
+                          {isLoanOverdue && (
+                            <div className="mt-2 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 transition-all duration-500 ease-out" style={{ transitionDelay: isExpanded ? '250ms' : '0ms', transform: isExpanded ? 'translateX(0) rotateY(0) scale(1)' : 'translateX(-20px) rotateY(5deg) scale(0.98)', opacity: isExpanded ? 1 : 0 }}>
+                              <p className="text-[10px] text-red-600 dark:text-red-400 font-mono flex items-center gap-1.5"><AlertTriangle className="w-3 h-3 shrink-0" />PENALTY ACCRUING: +1% daily</p>
+                            </div>
+                          )}
                         </div>
                       </div>
+                      
                       <div>
-                        <p className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 tracking-widest font-bold mb-3">QUICK ACTIONS</p>
+                        <p className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 tracking-widest font-bold mb-3 transition-all duration-500 ease-out" style={{ transitionDelay: isExpanded ? '100ms' : '0ms', transform: isExpanded ? 'translateX(0) rotateY(0) scale(1)' : 'translateX(40px) rotateY(-15deg) scale(0.95)', opacity: isExpanded ? 1 : 0 }}>QUICK ACTIONS</p>
                         <div className="flex flex-col gap-2">
-                          <Link href={`/customer/loans/${loan.id}`} className="w-full py-2.5 px-4 rounded-xl text-center bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all duration-300 hover:scale-105" style={{ boxShadow: '0 2px 8px rgba(99,102,241,0.25)' }}>Make Payment</Link>
-                          <button className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all duration-300 border border-gray-200 dark:border-gray-700">View Statement</button>
+                          <Link href={`/customer/loans/${loan.id}`} className="w-full py-2.5 px-4 rounded-xl text-center bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all duration-500 hover:scale-105" style={{ transitionDelay: isExpanded ? '150ms' : '0ms', transform: isExpanded ? 'translateX(0) rotateY(0) scale(1)' : 'translateX(30px) rotateY(10deg) scale(0.95)', opacity: isExpanded ? 1 : 0 }}>Make Payment</Link>
+                          <button className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all duration-500 border border-gray-200 dark:border-gray-700" style={{ transitionDelay: isExpanded ? '200ms' : '0ms', transform: isExpanded ? 'translateX(0) rotateY(0) scale(1)' : 'translateX(20px) rotateY(5deg) scale(0.98)', opacity: isExpanded ? 1 : 0 }}>View Statement</button>
                         </div>
                       </div>
                     </div>
