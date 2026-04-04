@@ -53,14 +53,24 @@ export default function LoanCenterPage() {
       setLoans(loansData);
       
       // Calculate stats
-      const totalBorrowed = loansData.reduce((sum: number, l: Loan) => sum + l.amount, 0);
-      const totalRepaid = loansData.reduce((sum: number, l: Loan) => sum + l.amountPaid, 0);
+            // Calculate stats - EXCLUDE pending loans from totals
+      const activeLoans = loansData.filter((l: Loan) => l.status === 'active').length;
+      const completedLoans = loansData.filter((l: Loan) => l.status === 'completed' || l.status === 'paid').length;
+      const overdueLoans = loansData.filter((l: Loan) => l.status === 'overdue').length;
+      
+      // Only include active, completed, and overdue in totals (NOT pending)
+      const approvedLoans = loansData.filter((l: Loan) => 
+        l.status === 'active' || l.status === 'completed' || l.status === 'paid' || l.status === 'overdue'
+      );
+      
+      const totalBorrowed = approvedLoans.reduce((sum: number, l: Loan) => sum + l.amount, 0);
+      const totalRepaid = approvedLoans.reduce((sum: number, l: Loan) => sum + l.amountPaid, 0);
       
       setStats({
-        total: loansData.length,
-        active: loansData.filter((l: Loan) => l.status === 'active').length,
-        overdue: loansData.filter((l: Loan) => l.status === 'overdue').length,
-        completed: loansData.filter((l: Loan) => l.status === 'completed' || l.status === 'paid').length,
+        total: approvedLoans.length,
+        active: activeLoans,
+        overdue: overdueLoans,
+        completed: completedLoans,
         totalBorrowed: totalBorrowed,
         totalRepaid: totalRepaid,
       });
@@ -335,3 +345,4 @@ export default function LoanCenterPage() {
     </div>
   );
 }
+
