@@ -74,7 +74,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       <aside className={`
         fixed top-0 left-0 bottom-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
         transition-all duration-300 ease-in-out z-50
-        ${sidebarCollapsed ? 'w-20' : 'w-72'}
+        ${sidebarCollapsed ? 'w-16' : 'w-60'}
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
@@ -221,7 +221,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       {/* Main Content */}
       <main className={`
         transition-all duration-300
-        ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'}
+        ${sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-60'}
       `}>
         {/* Header - Clean with only essential elements */}
         <header className={`sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-all duration-300 ${
@@ -254,3 +254,5 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     </div>
   );
 }
+
+
