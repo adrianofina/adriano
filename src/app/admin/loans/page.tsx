@@ -122,10 +122,9 @@ export default function AdminLoansPage() {
     fetchLoans();
   }, []);
 
-  const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount: number) => {
     if (!amount || isNaN(amount)) return 'TSh 0';
-    if (amount >= 1_000_000) return `TSh ${(amount / 1_000_000).toFixed(1)}M`;
-    if (amount >= 1_000) return `TSh ${(amount / 1_000).toFixed(1)}K`;
+    // Show full numbers, no K/M abbreviations
     return `TSh ${amount.toLocaleString()}`;
   };
 
@@ -401,3 +400,4 @@ export default function AdminLoansPage() {
     </div>
   );
 }
+

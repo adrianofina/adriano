@@ -122,10 +122,9 @@ export default function CustomerDashboard() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    if (!amount && amount !== 0) return 'TSh 0';
-    if (amount >= 1_000_000) return `TSh ${(amount / 1_000_000).toFixed(1)}M`;
-    if (amount >= 1_000) return `TSh ${(amount / 1_000).toFixed(1)}K`;
+    const formatCurrency = (amount: number) => {
+    if (!amount || isNaN(amount)) return 'TSh 0';
+    // Show full numbers, no K/M abbreviations
     return `TSh ${amount.toLocaleString()}`;
   };
 
@@ -608,3 +607,4 @@ export default function CustomerDashboard() {
     </div>
   );
 }
+
