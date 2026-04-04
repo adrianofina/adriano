@@ -45,8 +45,8 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
 
   const navItems: NavItem[] = [
     { href: '/customer/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview & stats' },
-    { href: '/customer/apply-loan', label: 'Apply Loan', icon: FileText, description: 'New loan application' },
-    { href: '/customer/loan-history', label: 'Loan History', icon: History, description: 'Past and active loans' },
+   // { href: '/customer/apply-loan', label: 'Apply Loan', icon: FileText, description: 'New loan application' },
+    { href: '/customer/loans', label: 'Loans', icon: History, description: 'New, Past and active loans' },
     { href: '/customer/profile', label: 'Profile', icon: User, description: 'Personal information' },
   ];
 
@@ -254,5 +254,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     </div>
   );
 }
+
+
 
 

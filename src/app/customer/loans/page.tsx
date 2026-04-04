@@ -3,19 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   CreditCard,
   Calendar,
   DollarSign,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
   FileText,
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  Plus,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  X,
+  Send,
+  ArrowLeft
 } from 'lucide-react';
 import ProgressRing from '@/components/ui/ProgressRing';
 import SungJinwooShadow from '@/components/ui/infamousshadow';
+import ApplyLoanModal from '@/components/modals/ApplyLoanModal';
 
 interface Loan {
   id: string;
@@ -30,11 +34,12 @@ interface Loan {
   interestRate?: number;
 }
 
-export default function LoanHistoryPage() {
+export default function LoanCenterPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ total: 0, active: 0, overdue: 0, completed: 0 });
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [stats, setStats] = useState({ total: 0, active: 0, overdue: 0, completed: 0, totalBorrowed: 0, totalRepaid: 0 });
 
   useEffect(() => {
     fetchLoanHistory();
@@ -47,12 +52,17 @@ export default function LoanHistoryPage() {
       const loansData = data.loans || [];
       setLoans(loansData);
       
-      // Calculate real stats from loans array
+      // Calculate stats
+      const totalBorrowed = loansData.reduce((sum: number, l: Loan) => sum + l.amount, 0);
+      const totalRepaid = loansData.reduce((sum: number, l: Loan) => sum + l.amountPaid, 0);
+      
       setStats({
         total: loansData.length,
         active: loansData.filter((l: Loan) => l.status === 'active').length,
         overdue: loansData.filter((l: Loan) => l.status === 'overdue').length,
         completed: loansData.filter((l: Loan) => l.status === 'completed' || l.status === 'paid').length,
+        totalBorrowed: totalBorrowed,
+        totalRepaid: totalRepaid,
       });
     } catch (error) {
       console.error('Error fetching loans:', error);
@@ -61,9 +71,8 @@ export default function LoanHistoryPage() {
     }
   };
 
-    const formatCurrency = (amount: number) => {
-    if (!amount || isNaN(amount)) return 'TSh 0';
-    // Show full numbers, no K/M abbreviations
+  const formatCurrency = (amount: number) => {
+    if (!amount && amount !== 0) return 'TSh 0';
     return `TSh ${amount.toLocaleString()}`;
   };
 
@@ -85,52 +94,87 @@ export default function LoanHistoryPage() {
   return (
     <div className="space-y-6">
       {/* Header with Stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/customer/dashboard"
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 dark:text-white">Loan History</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Track all your loans in one place</p>
-          </div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white">Loan Center</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage your loans or apply for a new one</p>
         </div>
         
-        {/* Compact Stats Cards */}
-        <div className="flex gap-3">
-          <div className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-center min-w-[70px]">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total</p>
-            <p className="text-lg font-black text-gray-900 dark:text-white">{stats.total}</p>
+        {/* Apply Button - Prominent */}
+        <button
+          onClick={() => setShowApplyModal(true)}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-md"
+        >
+          <Plus className="w-4 h-4" />
+          Apply for a New Loan
+        </button>
+      </div>
+
+      {/* Stats Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Total Loans</p>
+          <p className="text-2xl font-black text-gray-900 dark:text-white">{stats.total}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] text-emerald-600 uppercase tracking-wider">Active</p>
+          <p className="text-2xl font-black text-emerald-600">{stats.active}</p>
+        </div>
+        <div className={`bg-white dark:bg-gray-900 rounded-xl p-4 border ${stats.overdue > 0 ? 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20' : 'border-gray-200 dark:border-gray-800'}`}>
+          <p className="text-[10px] text-red-600 uppercase tracking-wider">Overdue</p>
+          <p className={`text-2xl font-black ${stats.overdue > 0 ? 'text-red-600 animate-pulse' : 'text-gray-900 dark:text-white'}`}>{stats.overdue}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+          <p className="text-[10px] text-purple-600 uppercase tracking-wider">Completed</p>
+          <p className="text-2xl font-black text-purple-600">{stats.completed}</p>
+        </div>
+      </div>
+
+      {/* Financial Summary Row */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Borrowed:</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(stats.totalBorrowed)}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-center min-w-[70px]">
-            <p className="text-[10px] text-emerald-600 uppercase tracking-wider">Active</p>
-            <p className="text-lg font-black text-emerald-600">{stats.active}</p>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Repaid:</span>
+            <span className="text-sm font-bold text-emerald-600">{formatCurrency(stats.totalRepaid)}</span>
           </div>
-          <div className={`px-3 py-1.5 rounded-xl text-center min-w-[70px] ${stats.overdue > 0 ? 'bg-red-50 dark:bg-red-950/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Overdue</p>
-            <p className={`text-lg font-black ${stats.overdue > 0 ? 'text-red-600 animate-pulse' : 'text-gray-900 dark:text-white'}`}>{stats.overdue}</p>
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-amber-600" />
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Outstanding:</span>
+            <span className="text-sm font-bold text-amber-600">{formatCurrency(stats.totalBorrowed - stats.totalRepaid)}</span>
           </div>
         </div>
       </div>
 
-      {/* Loan Blades - Credit Blade System */}
+      {/* Loan Blades Section */}
       {loans.length === 0 ? (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-800">
-          <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <CreditCard className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No loans yet</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">You haven't taken any loans yet.</p>
-          <Link
-            href="/customer/apply-loan"
+          <button
+            onClick={() => setShowApplyModal(true)}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all hover:scale-105"
           >
-            Apply for a Loan
-          </Link>
+            <Plus className="w-4 h-4" />
+            Apply for Your First Loan
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-indigo-500" />
+              Your Loans
+            </h2>
+            <span className="text-[10px] font-mono text-gray-400">{loans.length} ACTIVE LOANS</span>
+          </div>
+
           {loans.map((loan) => {
             const isExpanded = expandedLoanId === loan.id;
             const bladeProgress = (loan.amountPaid / loan.amount) * 100;
@@ -138,7 +182,6 @@ export default function LoanHistoryPage() {
             const isActive = loan.status === 'active';
             const isCompleted = loan.status === 'completed' || loan.status === 'paid';
             
-            // Determine status for ring
             let ringStatus: 'active' | 'overdue' | 'completed' | 'pending' = 'pending';
             if (isOverdue) ringStatus = 'overdue';
             else if (isActive) ringStatus = 'active';
@@ -151,18 +194,18 @@ export default function LoanHistoryPage() {
                   isExpanded 
                     ? 'bg-gray-50 dark:bg-gray-800 border-indigo-300 dark:border-indigo-500/50' 
                     : isOverdue
-                      ? 'bg-white dark:bg-gray-900 border-red-200 dark:border-red-800 hover:border-red-300 dark:hover:border-red-700'
-                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
+                      ? 'bg-white dark:bg-gray-900 border-red-200 dark:border-red-800 hover:border-red-300'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300'
                 }`}
               >
-                {/* Blade Header - Click to expand */}
+                {/* Blade Header */}
                 <div 
                   className="p-4 cursor-pointer"
                   onClick={() => setExpandedLoanId(isExpanded ? null : loan.id)}
                 >
                   <div className="flex items-center gap-4 flex-wrap">
                     
-                    {/* Status Bar - Colored vertical line */}
+                    {/* Status Bar */}
                     <div className="flex-shrink-0">
                       <div className={`w-1.5 h-10 rounded-full ${
                         isOverdue ? 'bg-red-500 animate-pulse' : 
@@ -189,9 +232,7 @@ export default function LoanHistoryPage() {
                     {/* Loan Information */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">
-                          {loan.loanId}
-                        </span>
+                        <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">{loan.loanId}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                           isOverdue ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                           isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
@@ -206,19 +247,18 @@ export default function LoanHistoryPage() {
                         <span className="text-gray-400">•</span>
                         <span className="text-gray-600 dark:text-gray-400">{loan.purpose}</span>
                         <span className="text-gray-400">•</span>
-                        <span className="text-gray-500 flex items-center gap-1">
+                        <span className="flex items-center gap-1 text-gray-500">
                           <Calendar className="w-3 h-3" />
                           {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString() : 'No due date'}
                         </span>
                       </div>
                     </div>
                     
-                    {/* Expand Indicator */}
                     <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
                   </div>
                 </div>
                 
-                {/* Blueprint Section - Slides in when expanded */}
+                {/* Blueprint Section */}
                 <div 
                   className={`overflow-hidden transition-all duration-500 ease-out ${
                     isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
@@ -232,45 +272,28 @@ export default function LoanHistoryPage() {
                     }}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      
                       {/* Payment Details */}
                       <div>
-                        <p className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 tracking-widest font-bold mb-3">
-                          PAYMENT DETAILS
-                        </p>
+                        <p className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 tracking-widest font-bold mb-3">PAYMENT DETAILS</p>
                         <div className="space-y-2">
                           <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Total Amount</span>
+                            <span className="text-xs text-gray-500">Total Amount</span>
                             <span className="font-mono font-bold text-xs text-gray-900 dark:text-white">{formatCurrency(loan.amount)}</span>
                           </div>
                           <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Amount Paid</span>
-                            <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">{formatCurrency(loan.amountPaid)}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Remaining Balance</span>
-                            <span className="font-mono font-bold text-xs text-amber-600 dark:text-amber-400">{formatCurrency(loan.remainingBalance)}</span>
+                            <span className="text-xs text-gray-500">Amount Paid</span>
+                            <span className="font-mono font-bold text-xs text-emerald-600">{formatCurrency(loan.amountPaid)}</span>
                           </div>
                           <div className="flex justify-between items-center py-2">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Applied Date</span>
-                            <span className="font-mono font-bold text-xs text-gray-900 dark:text-white">{new Date(loan.createdAt).toLocaleDateString()}</span>
+                            <span className="text-xs text-gray-500">Remaining</span>
+                            <span className="font-mono font-bold text-xs text-amber-600">{formatCurrency(loan.remainingBalance)}</span>
                           </div>
-                          {isOverdue && (
-                            <div className="mt-3 p-2.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
-                              <p className="text-[10px] text-red-600 dark:text-red-400 font-mono flex items-center gap-1.5">
-                                <AlertTriangle className="w-3 h-3 shrink-0" />
-                                OVERDUE: Payment required immediately
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </div>
                       
                       {/* Quick Actions */}
                       <div>
-                        <p className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 tracking-widest font-bold mb-3">
-                          QUICK ACTIONS
-                        </p>
+                        <p className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 tracking-widest font-bold mb-3">QUICK ACTIONS</p>
                         <div className="flex flex-col gap-2">
                           {(isActive || isOverdue) && (
                             <Link
@@ -280,11 +303,8 @@ export default function LoanHistoryPage() {
                               Make Payment
                             </Link>
                           )}
-                          <button className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all duration-300 border border-gray-200 dark:border-gray-700">
+                          <button className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all duration-300">
                             View Statement
-                          </button>
-                          <button className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all duration-300 border border-gray-200 dark:border-gray-700">
-                            Request Extension
                           </button>
                         </div>
                       </div>
@@ -292,7 +312,7 @@ export default function LoanHistoryPage() {
                   </div>
                 </div>
                 
-                {/* Sung Jinwoo's Shadow - The infamous progress bar */}
+                {/* Sung Jinwoo's Shadow */}
                 <SungJinwooShadow 
                   progress={bladeProgress} 
                   status={ringStatus}
@@ -303,37 +323,15 @@ export default function LoanHistoryPage() {
           })}
         </div>
       )}
-      
-      {/* Compact Summary Footer */}
-      {loans.length > 0 && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Total borrowed:</span>
-              <span className="text-sm font-bold text-gray-900 dark:text-white">
-                {formatCurrency(loans.reduce((sum, l) => sum + l.amount, 0))}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Total repaid:</span>
-              <span className="text-sm font-bold text-emerald-600">
-                {formatCurrency(loans.reduce((sum, l) => sum + l.amountPaid, 0))}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-amber-600" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Outstanding:</span>
-              <span className="text-sm font-bold text-amber-600">
-                {formatCurrency(loans.reduce((sum, l) => sum + l.remainingBalance, 0))}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+
+      {/* Apply Loan Modal */}
+      <ApplyLoanModal
+        isOpen={showApplyModal}
+        onClose={() => setShowApplyModal(false)}
+        onSuccess={() => {
+          fetchLoanHistory();
+        }}
+      />
     </div>
   );
 }
-
-
