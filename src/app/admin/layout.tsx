@@ -179,13 +179,6 @@ export default function AdminLayout({
   icon: Upload,
   description: 'Register customers',
   roles: ['super_admin', 'admin', 'loan_officer', 'customer_service'],
-},
-{
-  href: '/admin/customers/deleted',
-  label: 'Deleted Customers',
-  icon: Archive,
-  description: 'View deleted customers',
-  roles: ['super_admin', 'admin']
 }]
     },
     {
@@ -223,6 +216,13 @@ export default function AdminLayout({
           icon: BarChart3,
           description: 'Analytics',
           roles: ['super_admin', 'admin']
+        },
+        {
+          href: '/admin/customers/deleted',
+         label: 'Deleted Customers',
+         icon: Archive,
+         description: 'View deleted customers',
+         roles: ['super_admin', 'admin']
         },
         {
           href: '/admin/audit',
