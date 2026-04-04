@@ -2,6 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+
+
+interface LoanData {
+  id: string;
+  loanId: string;
+  amount: number;
+  amountPaid: number;
+  remainingBalance: number;
+  status: string;
+  dueDate: string;
+  purpose: string;
+  interestRate: number;
+  penalties: number;
+}
 import {
   User,
   Mail,
@@ -37,6 +51,20 @@ import {
 import ProgressRing from '@/components/ui/ProgressRing';
 import SungJinwooShadow from '@/components/ui/infamousshadow';
 
+
+
+interface LoanData {
+  id: string;
+  loanId: string;
+  amount: number;
+  amountPaid: number;
+  remainingBalance: number;
+  status: string;
+  dueDate: string;
+  purpose: string;
+  interestRate: number;
+  penalties: number;
+}
 interface CustomerData {
   id: string;
   customerId: string;
@@ -71,6 +99,7 @@ interface CustomerData {
   totalRepaid: number;
   createdAt: string;
   updatedAt: string;
+  loans?: LoanData[];
 }
 
 interface Document {
@@ -977,6 +1006,8 @@ export default function CustomerProfile() {
     </div>
   );
 }
+
+
 
 
 
