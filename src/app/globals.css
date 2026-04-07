@@ -1,4 +1,18 @@
-﻿@tailwind base;
+﻿/* System font stack for better performance */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
+}
+
+* {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -138,3 +152,4 @@
 .animate-shine {
   animation: shine 2s linear infinite;
 }
+

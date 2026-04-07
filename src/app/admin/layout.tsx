@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
   Upload,
   CheckCircle2,
   Clock,
@@ -49,48 +49,44 @@ interface NavSection {
   items: NavItem[];
 }
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['customers']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['customers', 'loans']);
   const { user, logout, isLoading } = useAuth();
 
-  const [pendingApprovals] = useState(3);
+  // Real-time stats for sidebar
   const [stats, setStats] = useState({
     totalCustomers: 0,
     activeLoans: 0,
     overdueLoans: 0,
     completedLoans: 0,
-    deletedCustomers: 0
+    totalLoans: 0,
+    pendingApprovals: 0
   });
 
-  // Fetch real stats
-    useEffect(() => {
+  useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/admin/counts');
+        const res = await fetch('/api/admin/stats');
         const result = await res.json();
-        
         if (result.success && result.data) {
           setStats({
-            totalCustomers: result.data.total || 0,
-            activeLoans: result.data.active || 0,
-            overdueLoans: result.data.overdue || 0,
-            completedLoans: result.data.completed || 0,
-            deletedCustomers: result.data.deleted || 0
+            totalCustomers: result.data.totalCustomers || 0,
+            activeLoans: result.data.activeLoans || 0,
+            overdueLoans: result.data.overdueLoans || 0,
+            completedLoans: result.data.completedLoans || 0,
+            totalLoans: result.data.totalLoans || 0,
+            pendingApprovals: result.data.pendingLoans || 0
           });
         }
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching sidebar stats:', error);
       }
     };
-    
+
     fetchStats();
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
@@ -103,8 +99,8 @@ export default function AdminLayout({
   }, []);
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => 
-      prev.includes(section) 
+    setExpandedSections(prev =>
+      prev.includes(section)
         ? prev.filter(s => s !== section)
         : [...prev, section]
     );
@@ -121,7 +117,8 @@ export default function AdminLayout({
           icon: LayoutDashboard,
           description: 'Overview & stats',
           roles: ['super_admin', 'admin', 'loan_officer', 'customer_service', 'viewer']
-        }]
+        }
+      ]
     },
     {
       id: 'customers',
@@ -169,17 +166,23 @@ export default function AdminLayout({
           label: 'Risk Analysis',
           icon: Shield,
           description: 'Credit risk assessment',
-          roles: ['super_admin', 'admin'],
-          badge: 0,
-          badgeColor: 'red'
+          roles: ['super_admin', 'admin']
         },
-       {
-  href: '/admin/uploads',
-  label: 'Manual Upload',
-  icon: Upload,
-  description: 'Register customers',
-  roles: ['super_admin', 'admin', 'loan_officer', 'customer_service'],
-}]
+        {
+          href: '/admin/uploads',
+          label: 'Manual Upload',
+          icon: Upload,
+          description: 'Register customers',
+          roles: ['super_admin', 'admin', 'loan_officer', 'customer_service']
+        },
+        {
+          href: '/admin/customers/deleted',
+          label: 'Deleted Customers',
+          icon: Archive,
+          description: 'View deleted customers',
+          roles: ['super_admin', 'admin']
+        }
+      ]
     },
     {
       id: 'loans',
@@ -192,7 +195,7 @@ export default function AdminLayout({
           icon: CreditCard,
           description: 'All applications',
           roles: ['super_admin', 'admin', 'loan_officer', 'viewer'],
-          badge: stats.activeLoans + stats.completedLoans + stats.overdueLoans
+          badge: stats.totalLoans
         },
         {
           href: '/admin/approvals',
@@ -200,10 +203,11 @@ export default function AdminLayout({
           icon: Clock,
           description: 'Need review',
           roles: ['super_admin', 'admin'],
-          badge: pendingApprovals,
+          badge: stats.pendingApprovals,
           badgeColor: 'yellow',
-          highlight: pendingApprovals > 0
-        }]
+          highlight: stats.pendingApprovals > 0
+        }
+      ]
     },
     {
       id: 'reports',
@@ -218,18 +222,11 @@ export default function AdminLayout({
           roles: ['super_admin', 'admin']
         },
         {
-          href: '/admin/customers/deleted',
-         label: 'Deleted Customers',
-         icon: Archive,
-         description: 'View deleted customers',
-         roles: ['super_admin', 'admin']
-        },
-        {
           href: '/admin/audit',
           label: 'Audit',
           icon: Archive,
           description: 'Activity logs',
-          roles: ['super_admin'],
+          roles: ['super_admin']
         },
         {
           href: '/admin/settings',
@@ -237,7 +234,8 @@ export default function AdminLayout({
           icon: Settings,
           description: 'Configuration',
           roles: ['super_admin', 'admin']
-        }]
+        }
+      ]
     }
   ];
 
@@ -248,8 +246,8 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
       </div>
     );
   }
@@ -257,7 +255,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Mobile Menu Overlay */}
-      <div 
+      <div
         className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden ${
           mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
@@ -278,12 +276,12 @@ export default function AdminLayout({
             ${sidebarCollapsed ? 'justify-center' : ''}
           `}>
             {sidebarCollapsed ? (
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-lg">A</span>
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
                   <span className="text-white font-bold text-lg">A</span>
                 </div>
                 <div>
@@ -292,16 +290,12 @@ export default function AdminLayout({
                 </div>
               </div>
             )}
-            
+
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="hidden lg:block p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
-              {sidebarCollapsed ? (
-                <PanelLeftOpen className="w-4 h-4 text-gray-500" />
-              ) : (
-                <PanelLeftClose className="w-4 h-4 text-gray-500" />
-              )}
+              {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4 text-gray-500" /> : <PanelLeftClose className="w-4 h-4 text-gray-500" />}
             </button>
 
             <button
@@ -314,10 +308,10 @@ export default function AdminLayout({
 
           {/* User Role Badge */}
           {!sidebarCollapsed && (
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b border-gray-200 dark:border-gray-800">
+            <div className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-800">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600 dark:text-gray-400">Role:</span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
                   {user?.role?.replace('_', ' ').toUpperCase() || 'ADMIN'}
                 </span>
               </div>
@@ -337,11 +331,7 @@ export default function AdminLayout({
                       {section.icon && <section.icon className="w-4 h-4" />}
                       <span>{section.title}</span>
                     </div>
-                    {expandedSections.includes(section.id) ? (
-                      <ChevronDown className="w-3 h-3" />
-                    ) : (
-                      <ChevronRight className="w-3 h-3" />
-                    )}
+                    {expandedSections.includes(section.id) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                   </button>
                 )}
 
@@ -350,7 +340,7 @@ export default function AdminLayout({
                     {section.items.map((item) => {
                       const Icon = item.icon;
                       const isActive = pathname === item.href;
-                      
+
                       return (
                         <Link
                           key={item.href}
@@ -358,21 +348,21 @@ export default function AdminLayout({
                           className={`
                             flex items-center justify-between px-3 py-2 rounded-lg transition-all
                             ${isActive 
-                              ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' 
+                              ? 'bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
                               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                             }
                           `}
                         >
                           <div className="flex items-center gap-3">
-                            <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                            <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`} />
                             <span className="text-sm font-medium">{item.label}</span>
                           </div>
                           {item.badge !== undefined && item.badge >= 0 && (
                             <span className={`
                               px-1.5 py-0.5 text-xs rounded-full
-                              ${item.highlight 
-                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 animate-pulse' 
-                                : `bg-${item.badgeColor || 'blue'}-100 dark:bg-${item.badgeColor || 'blue'}-900/30 text-${item.badgeColor || 'blue'}-700 dark:text-${item.badgeColor || 'blue'}-300`
+                              ${item.highlight
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 animate-pulse'
+                                : `bg-${item.badgeColor || 'indigo'}-100 dark:bg-${item.badgeColor || 'indigo'}-900/30 text-${item.badgeColor || 'indigo'}-700 dark:text-${item.badgeColor || 'indigo'}-300`
                               }
                             `}>
                               {item.badge}
@@ -400,36 +390,24 @@ export default function AdminLayout({
             ))}
           </nav>
 
-          {/* User Profile - Shows REAL logged-in user */}
+          {/* User Profile */}
           <div className={`
             border-t border-gray-200 dark:border-gray-800 p-4
             ${sidebarCollapsed ? 'text-center' : ''}
           `}>
             {sidebarCollapsed ? (
-              <button
-                onClick={logout}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors relative group"
-                title="Logout"
-              >
+              <button onClick={logout} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors relative group" title="Logout">
                 <LogOut className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap">
-                  Logout
-                </div>
+                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap">Logout</div>
               </button>
             ) : (
-              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-blue-50/30 dark:from-gray-800 dark:to-blue-900/20 rounded-xl">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
-                    {user?.name?.split(' ').map(n => n[0]).join('') || 'A'}
-                  </span>
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-indigo-50/30 dark:from-gray-800 dark:to-indigo-900/20 rounded-xl">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">{user?.name?.split(' ').map(n => n[0]).join('') || 'A'}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                    {user?.name || 'Admin User'}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {user?.email || 'admin@adriancims.com'}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.name || 'Admin User'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email || 'admin@adriancims.com'}</p>
                 </div>
                 <button onClick={logout} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
                   <LogOut className="w-4 h-4 text-gray-500" />
@@ -441,60 +419,24 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Content */}
-      <main className={`
-        transition-all duration-300
-        ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'}
-      `}>
-        {/* Header */}
-        <header className={`sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-all duration-300 ${
-          scrolled ? 'shadow-sm' : ''
-        }`}>
+      <main className={`transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'}`}>
+        <header className={`sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-all duration-300 ${scrolled ? 'shadow-sm' : ''}`}>
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
-              >
+              <button onClick={() => setMobileMenuOpen(true)} className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                 <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {filteredSections.flatMap(s => s.items).find(i => i.href === pathname)?.label || 'Dashboard'}
               </h2>
             </div>
-            
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                <Bell className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              </button>
             </div>
           </div>
         </header>
-
-        {/* Page Content */}
-        <div className="p-4 sm:p-6">
-          {children}
-        </div>
+        <div className="p-4 sm:p-6">{children}</div>
       </main>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
