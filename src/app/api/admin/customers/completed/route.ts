@@ -1,77 +1,89 @@
 ﻿import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { db } from '@/lib/db';
 import { getAuthCookie, verifyToken } from '@/lib/auth';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const token = await getAuthCookie();
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const customers = await prisma.customer.findMany({
+    const user = verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+
+    // Get customers with completed loans (no active/overdue, but have total loans)
+    const customers = await db.customer.findMany({
       where: {
         activeLoans: 0,
-        totalLoans: { gt: 0 }
+        overdueLoans: 0,
+        totalLoans: { gt: 0 },
+        deletedAt: null,
+        ...(search && {
+          OR: [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { surname: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { phoneNumber: { contains: search } },
+            { customerId: { contains: search, mode: 'insensitive' } }
+          ]
+        })
       },
       include: {
         loans: {
-          where: { status: 'paid' },
-          orderBy: { paidAt: 'desc' }
+          where: { status: { in: ['completed', 'paid'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
-    const formatted = customers.map(c => {
-      const lastLoan = c.loans[0];
-      const totalRepaid = c.loans.reduce((sum, l) => sum + l.amountPaid, 0);
-      
+    // Calculate stats
+    let totalRepaid = 0;
+    let totalCreditScore = 0;
+
+    const formattedCustomers = customers.map(customer => {
+      const completedLoan = customer.loans[0];
+      totalRepaid += completedLoan?.amountPaid || 0;
+      totalCreditScore += customer.creditScore || 0;
+
       return {
-        id: c.id,
-        customerId: c.customerId,
-        name: `${c.firstName} ${c.surname}`,
-        phone: c.phoneNumber,
-        email: c.email,
-        avatar: (c.firstName[0] + c.surname[0]).toUpperCase(),
-        totalLoans: c.totalLoans,
-        totalBorrowed: c.totalBorrowed,
-        totalRepaid,
-        lastLoanId: lastLoan?.loanId,
-        lastLoanAmount: lastLoan?.amount || 0,
-        completionDate: lastLoan?.paidAt ? new Date(lastLoan.paidAt).toLocaleDateString() : null,
-        memberSince: new Date(c.createdAt).toLocaleDateString(),
-        creditScore: c.creditScore || 650,
-        rating: c.creditScore && c.creditScore >= 700 ? 'Excellent' 
-                : c.creditScore && c.creditScore >= 600 ? 'Good' : 'Average',
-        referrals: 0
+        id: customer.id,
+        firstName: customer.firstName,
+        surname: customer.surname,
+        phoneNumber: customer.phoneNumber,
+        email: customer.email,
+        loanId: completedLoan?.loanId || 'N/A',
+        amount: completedLoan?.amount || 0,
+        amountPaid: completedLoan?.amountPaid || 0,
+        remainingBalance: 0,
+        progress: 100,
+        status: 'completed',
+        completionDate: completedLoan?.updatedAt || completedLoan?.paidAt || customer.updatedAt,
+        creditScore: customer.creditScore,
+        customerId: customer.customerId
       };
     });
 
-    const totalRepaid = formatted.reduce((sum, c) => sum + c.totalRepaid, 0);
-    const avgCreditScore = formatted.length > 0 
-      ? Math.round(formatted.reduce((sum, c) => sum + c.creditScore, 0) / formatted.length) 
-      : 0;
+    const stats = {
+      total: customers.length,
+      totalRepaid,
+      avgCreditScore: customers.length > 0 ? totalCreditScore / customers.length : 0
+    };
 
-    return NextResponse.json({
-      customers: formatted,
-      stats: {
-        total: formatted.length,
-        totalRepaid,
-        avgCreditScore,
-        totalReferrals: formatted.reduce((sum, c) => sum + c.referrals, 0)
-      }
+    return NextResponse.json({ 
+      success: true, 
+      customers: formattedCustomers,
+      stats
     });
-
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('Error fetching completed customers:', error);
+    return NextResponse.json({ error: 'Failed to fetch completed customers' }, { status: 500 });
   }
 }

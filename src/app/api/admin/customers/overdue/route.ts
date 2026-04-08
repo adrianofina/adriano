@@ -1,82 +1,97 @@
 ﻿import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { db } from '@/lib/db';
 import { getAuthCookie, verifyToken } from '@/lib/auth';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const token = await getAuthCookie();
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const customers = await prisma.customer.findMany({
-      where: { overdueLoans: { gt: 0 } },
+    const user = verifyToken(token);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+
+    // Get customers with overdue loans
+    const customers = await db.customer.findMany({
+      where: {
+        overdueLoans: { gt: 0 },
+        deletedAt: null,
+        ...(search && {
+          OR: [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { surname: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { phoneNumber: { contains: search } },
+            { customerId: { contains: search, mode: 'insensitive' } }
+          ]
+        })
+      },
       include: {
         loans: {
           where: { status: 'overdue' },
-          include: { payments: { take: 1, orderBy: { receivedAt: 'desc' } } }
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
 
-    const formatted = customers.map(c => {
-      const loan = c.loans[0];
-      const daysOverdue = loan?.nextPaymentDate 
-        ? Math.floor((new Date().getTime() - new Date(loan.nextPaymentDate).getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
+    // Calculate stats
+    let totalOverdue = 0;
+    let totalDays = 0;
+    let totalPenalty = 0;
 
-      const totalDue = (loan?.remainingBalance || 0) + (loan?.penalties || 0);
+    const formattedCustomers = customers.map(customer => {
+      const overdueLoan = customer.loans[0];
+      const daysOverdue = overdueLoan?.dueDate 
+        ? Math.max(0, Math.floor((new Date().getTime() - new Date(overdueLoan.dueDate).getTime()) / (1000 * 60 * 60 * 24)))
+        : 0;
+      const penalty = overdueLoan?.penalties || (daysOverdue * (overdueLoan?.amount || 0) * 0.01);
+      
+      totalOverdue += overdueLoan?.remainingBalance || 0;
+      totalDays += daysOverdue;
+      totalPenalty += penalty;
 
       return {
-        id: c.id,
-        customerId: c.customerId,
-        name: `${c.firstName} ${c.surname}`,
-        phone: c.phoneNumber,
-        email: c.email,
-        avatar: (c.firstName[0] + c.surname[0]).toUpperCase(),
-        loanId: loan?.loanId,
-        loanAmount: loan?.amount || 0,
-        paidAmount: loan?.amountPaid || 0,
-        remaining: loan?.remainingBalance || 0,
-        dueDate: loan?.nextPaymentDate ? new Date(loan.nextPaymentDate).toLocaleDateString() : null,
+        id: customer.id,
+        firstName: customer.firstName,
+        surname: customer.surname,
+        phoneNumber: customer.phoneNumber,
+        email: customer.email,
+        loanId: overdueLoan?.loanId || 'N/A',
+        amount: overdueLoan?.amount || 0,
+        amountPaid: overdueLoan?.amountPaid || 0,
+        remainingBalance: overdueLoan?.remainingBalance || 0,
+        progress: overdueLoan?.amount ? ((overdueLoan.amountPaid || 0) / overdueLoan.amount) * 100 : 0,
+        status: 'overdue',
+        dueDate: overdueLoan?.dueDate,
         daysOverdue,
-        penalty: loan?.penalties || 0,
-        totalDue,
-        lastContact: loan?.payments?.[0]?.receivedAt 
-          ? new Date(loan.payments[0].receivedAt).toLocaleDateString() 
-          : null,
-        risk: c.creditScore && c.creditScore >= 700 ? 'low' 
-              : c.creditScore && c.creditScore >= 600 ? 'medium' : 'high',
-        notes: loan?.status === 'overdue' ? 'Overdue payment' : null
+        penalty,
+        creditScore: customer.creditScore,
+        customerId: customer.customerId
       };
     });
 
-    const totalOverdue = formatted.reduce((sum, c) => sum + c.totalDue, 0);
-    const avgDays = formatted.length > 0 
-      ? Math.round(formatted.reduce((sum, c) => sum + c.daysOverdue, 0) / formatted.length) 
-      : 0;
-    const highRisk = formatted.filter(c => c.risk === 'high').length;
+    const stats = {
+      total: customers.length,
+      totalOverdue,
+      avgDays: customers.length > 0 ? totalDays / customers.length : 0,
+      totalPenalty
+    };
 
-    return NextResponse.json({
-      customers: formatted,
-      stats: {
-        total: formatted.length,
-        totalOverdue,
-        avgDays,
-        highRisk
-      }
+    return NextResponse.json({ 
+      success: true, 
+      customers: formattedCustomers,
+      stats
     });
-
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('Error fetching overdue customers:', error);
+    return NextResponse.json({ error: 'Failed to fetch overdue customers' }, { status: 500 });
   }
 }

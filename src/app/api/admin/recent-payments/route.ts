@@ -1,32 +1,40 @@
 ﻿import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get recent payments - adjust this query based on your schema
-    const recentPayments = await db.payment.findMany({
-      take: 5,
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '5');
+    
+    const payments = await db.payment.findMany({
+      take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        customer: {
-          select: {
-            firstName: true,
-            surname: true,
-            phoneNumber: true
+        loan: {
+          include: {
+            customer: {
+              select: {
+                firstName: true,
+                surname: true
+              }
+            }
           }
         }
       }
     });
-
-    return NextResponse.json({
-      success: true,
-      data: recentPayments
-    });
+    
+    const data = payments.map(payment => ({
+      id: payment.id,
+      loanId: payment.loan?.loanId || 'N/A',
+      customerName: payment.loan?.customer ? `${payment.loan.customer.firstName} ${payment.loan.customer.surname}` : 'Unknown',
+      amount: payment.amount,
+      date: payment.createdAt,
+      method: payment.method || 'Cash'
+    }));
+    
+    return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Recent payments API error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch recent payments' },
-      { status: 500 }
-    );
+    console.error('Error fetching recent payments:', error);
+    return NextResponse.json({ success: true, data: [] });
   }
 }
