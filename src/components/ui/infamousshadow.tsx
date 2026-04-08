@@ -3,7 +3,7 @@
 interface SungJinwooShadowProps {
   progress: number;
   status?: 'active' | 'overdue' | 'completed' | 'pending';
-  height?: 'h-0.5' | 'h-1' | 'h-1.5';
+  height?: 'h-0.5' | 'h-1' | 'h-1.5' | 'h-2';
   className?: string;
 }
 
@@ -37,3 +37,7 @@ export default function SungJinwooShadow({
     </div>
   );
 }
+
+
+
+
